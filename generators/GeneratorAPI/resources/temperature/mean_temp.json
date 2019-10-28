@@ -1,0 +1,22 @@
+[
+    {
+        "region": "Bremen",
+        "meanTemp": 10.479706378196038
+    },
+    {
+        "region": "Wien",
+        "meanTemp": 12.107559850990938
+    },
+    {
+        "region": "BerlinDahlem",
+        "meanTemp": 10.844915309375613
+    },
+    {
+        "region": "Salzburg",
+        "meanTemp": 11.31113483915118
+    },
+    {
+        "region": "Frankfurt",
+        "meanTemp": 11.34391583351767
+    }
+]

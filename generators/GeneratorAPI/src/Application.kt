@@ -29,8 +29,8 @@ fun Application.module(testing: Boolean = false) {
 
         // Temperature generator
         route("/temperature") {
+            var generator = TemperatureGenerator();
             get("/random") {
-                var generator = TemperatureGenerator();
                 call.respond(generator.getRandomValue());
             }
             get("/random/{amount}") {
@@ -42,7 +42,6 @@ fun Application.module(testing: Boolean = false) {
                 else
                 {
                     var amount = amountStr.toInt();
-                    var generator = TemperatureGenerator();
                     call.respond(generator.generateRandomValues(amount));
                 }
 
