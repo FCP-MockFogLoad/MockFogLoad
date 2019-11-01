@@ -24,7 +24,7 @@ fun Application.module(testing: Boolean = false) {
 
     routing {
         get("/") {
-            call.respondText("HELLO WORLD!", contentType = ContentType.Text.Plain)
+            call.respondText("Welcome to Temperature Generator!", contentType = ContentType.Text.Plain)
         }
 
         val temperatureGenerator = TemperatureGenerator("Bremen", 0);
@@ -54,16 +54,15 @@ fun Application.module(testing: Boolean = false) {
             get("/random") {
                 call.respond(temperatureGenerator.getRandomValue());
             }
-            get("/random/{amount}") {
+            get("{amount}") {
                 when (val amountStr = call.parameters["amount"]) {
                     null -> call.respond(HttpStatusCode.BadRequest)
                     "day" -> call.respond(temperatureGenerator.getTemperaturesForDay())
                     else -> {
-                        val amount = amountStr.toInt();
-                        call.respond(temperatureGenerator.generateRandomValues(amount));
+                        val amount = amountStr.toIntOrNull() ?: 1
+                        call.respond(temperatureGenerator.generateRandomValues(amount))
                     }
                 }
-
             }
         }
     }
