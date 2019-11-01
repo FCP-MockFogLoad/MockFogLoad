@@ -27,22 +27,41 @@ fun Application.module(testing: Boolean = false) {
             call.respondText("HELLO WORLD!", contentType = ContentType.Text.Plain)
         }
 
+        val temperatureGenerator = TemperatureGenerator("Bremen", 0);
+
+        // Config
+        route("/config") {
+            // These GET routes are for debugging purposes only, POST routes will
+            // be added once the configuration is final.
+            get("/temperature/{region}/{month}") {
+                val newRegion = call.parameters["region"];
+                if (newRegion != null)
+                {
+                    temperatureGenerator.region = newRegion;
+                }
+
+                val newMonth = call.parameters["month"];
+                if (newMonth != null)
+                {
+                    temperatureGenerator.month =
+                        newMonth.toIntOrNull() ?: temperatureGenerator.month;
+                }
+            }
+        }
+
         // Temperature generator
         route("/temperature") {
-            var generator = TemperatureGenerator();
             get("/random") {
-                call.respond(generator.getRandomValue());
+                call.respond(temperatureGenerator.getRandomValue());
             }
             get("/random/{amount}") {
-                var amountStr = call.parameters["amount"];
-                if (amountStr == null)
-                {
-                    call.respond(HttpStatusCode.BadRequest);
-                }
-                else
-                {
-                    var amount = amountStr.toInt();
-                    call.respond(generator.generateRandomValues(amount));
+                when (val amountStr = call.parameters["amount"]) {
+                    null -> call.respond(HttpStatusCode.BadRequest)
+                    "day" -> call.respond(temperatureGenerator.getTemperaturesForDay())
+                    else -> {
+                        val amount = amountStr.toInt();
+                        call.respond(temperatureGenerator.generateRandomValues(amount));
+                    }
                 }
 
             }
