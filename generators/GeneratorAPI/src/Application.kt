@@ -54,7 +54,7 @@ fun Application.module(testing: Boolean = false) {
             get("/random") {
                 call.respond(temperatureGenerator.getRandomValue());
             }
-            get("{amount}") {
+            get("/random/{amount}") {
                 when (val amountStr = call.parameters["amount"]) {
                     null -> call.respond(HttpStatusCode.BadRequest)
                     "day" -> call.respond(temperatureGenerator.getTemperaturesForDay())
