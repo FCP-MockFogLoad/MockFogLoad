@@ -8,7 +8,7 @@ abstract class Generator<T> {
     abstract fun getRandomValue(): T
 
     /** Generate a specified amount of random values. */
-    fun generateRandomValues(amount: Int): List<T> {
+    open fun generateRandomValues(amount: Int): List<T> {
         return List(amount) { getRandomValue() };
     }
 

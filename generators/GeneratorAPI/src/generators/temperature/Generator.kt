@@ -5,16 +5,68 @@ import com.google.gson.GsonBuilder
 import java.io.File
 import java.lang.Integer.max
 import java.lang.Integer.min
-import kotlin.math.abs
+import kotlin.random.Random
 
 data class MeanTemperature(val region: String, val meanTemp: Float) {
 
 }
 
-class TemperatureGenerator(var region: String = "Bremen", var month: Int = 6): Generator<Temperature>() {
+class TemperatureGenerator: Generator<Temperature>() {
+    var region: String = "Bremen"
+    var month: Int = 6
+        set(value) {
+            val monthMultiplierBounds = tempDistributionYear[value]
+            this.monthMultiplier = randomFloat(monthMultiplierBounds.first,
+                                               monthMultiplierBounds.second)
+
+            field = value
+        }
+
     private val meanTempData = HashMap<String, Float>()
-    private val tempDistributionDay = Array(24) { Pair(0f, 0f) }
-    private val tempDistributionYear = Array(12) { Pair(0f, 0f) }
+    private val tempDistributionDay = floatArrayOf(
+        -0.5f, // 12 AM
+        -0.4f, // 1 AM
+        -0.3f, // 2 AM
+        -0.2f, // 3 AM
+        -0.1f, // 4 AM
+        0.0f, // 5 AM
+        0.1f, // 6 AM
+        0.2f, // 7 AM
+        0.3f, // 8 AM
+        0.4f, // 9 AM
+        0.5f, // 10 AM
+        0.6f, // 11 AM
+
+        0.7f, // 12 PM
+        0.7f, // 1 PM
+        0.6f, // 2 PM
+        0.5f, // 3 PM
+        0.4f, // 4 PM
+        0.3f, // 5 PM
+        0.2f, // 6 PM
+        0.1f, // 7 PM
+        0.0f, // 8 PM
+        -0.1f, // 9 PM
+        -0.2f, // 10 PM
+        -0.3f  // 11 PM
+    )
+
+    private val tempDistributionYear = arrayOf(
+        Pair(-1.5f, -1f), // January
+        Pair(-1.3f, -0.9f), // February
+        Pair(-1.0f, -0.3f), // March
+        Pair(-0.7f, -0.1f), // April
+        Pair(-0.1f, 0.1f), // May
+        Pair(0.3f, 0.7f), // June
+        Pair(0.6f, 1.2f), // July
+        Pair(1.3f, 1.8f), // August
+        Pair(1.2f, 1.7f), // September
+        Pair(-0.1f, 1.0f), // October
+        Pair(-0.7f, 0.3f), // November
+        Pair(-1.0f, -0.5f) // December
+    )
+
+    private var monthMultiplier = 0f
 
     init {
         val gsonBuilder = GsonBuilder().serializeNulls()
@@ -26,74 +78,46 @@ class TemperatureGenerator(var region: String = "Bremen", var month: Int = 6): G
             meanTempData.set(temp.region, temp.meanTemp);
         }
 
-        tempDistributionDay[0] = Pair(-0.6f, -0.3f) // 12:00 AM
-        tempDistributionDay[1] = Pair(-0.7f, -0.3f) // 1:00 AM
-        tempDistributionDay[2] = Pair(-0.8f, -0.35f) // 2:00 AM
-        tempDistributionDay[3] = Pair(-0.8f, -0.4f) // 3:00 AM
-        tempDistributionDay[4] = Pair(-0.7f, -0.4f) // 4:00 AM
-        tempDistributionDay[5] = Pair(-0.5f, -0.3f) // 5:00 AM
-        tempDistributionDay[6] = Pair(-0.4f, -0.3f) // 6:00 AM
-        tempDistributionDay[7] = Pair(-0.3f, -0.1f) // 7:00 AM
-        tempDistributionDay[8] = Pair(-0.2f, 0.05f) // 8:00 AM
-        tempDistributionDay[9] = Pair(-0.15f, 0.1f) // 9:00 AM
-        tempDistributionDay[10] = Pair(-0.15f, 0.2f) // 10:00 AM
-        tempDistributionDay[11] = Pair(-0.1f, 0.05f) // 11:00 AM
-
-        tempDistributionDay[12] = Pair(-0.1f, 0.1f) // 12:00 PM
-        tempDistributionDay[13] = Pair(-0.1f, 0.2f) // 1:00 PM
-        tempDistributionDay[14] = Pair(0.0f, 0.3f) // 2:00 PM
-        tempDistributionDay[15] = Pair(0.1f, 0.35f) // 3:00 PM
-        tempDistributionDay[16] = Pair(0.05f, 0.3f) // 4:00 PM
-        tempDistributionDay[17] = Pair(0.0f, 0.25f) // 5:00 PM
-        tempDistributionDay[18] = Pair(-0.05f, 0.2f) // 6:00 PM
-        tempDistributionDay[19] = Pair(-0.2f, 0.1f) // 7:00 PM
-        tempDistributionDay[20] = Pair(-0.3f, 0.0f) // 8:00 PM
-        tempDistributionDay[21] = Pair(-0.4f, -0.1f) // 9:00 PM
-        tempDistributionDay[22] = Pair(-0.45f, -0.15f) // 10:00 PM
-        tempDistributionDay[23] = Pair(-0.5f, -0.2f) // 11:00 PM
-
-        tempDistributionYear[0] = Pair(-1.5f, -1f) // January
-        tempDistributionYear[1] = Pair(-1.3f, -0.9f) // February
-        tempDistributionYear[2] = Pair(-1.0f, -0.3f) // March
-        tempDistributionYear[3] = Pair(-0.7f, -0.1f) // April
-        tempDistributionYear[4] = Pair(-0.1f, 0.1f) // May
-        tempDistributionYear[5] = Pair(0.3f, 0.7f) // June
-        tempDistributionYear[6] = Pair(0.6f, 1.2f) // July
-        tempDistributionYear[7] = Pair(1.3f, 1.8f) // August
-        tempDistributionYear[8] = Pair(1.2f, 1.7f) // September
-        tempDistributionYear[9] = Pair(-0.1f, 1.0f) // October
-        tempDistributionYear[10] = Pair(-0.7f, 0.3f) // November
-        tempDistributionYear[11] = Pair(-1.0f, -0.5f) // December
+        val monthMultiplierBounds = tempDistributionYear[month]
+        this.monthMultiplier = randomFloat(monthMultiplierBounds.first,
+            monthMultiplierBounds.second)
     }
 
     override fun getRandomValue(): Temperature {
-        return Temperature(meanTempData[region] ?: -1.0f, randomFloat(0f, 100f),
-                           randomFloat(1000f, 1100f));
+        return getTemperatureForHour(Random.nextInt(0, 24))
     }
 
-    fun getTemperaturesForHour(hour: Int): Temperature {
-        val hourClean = max(min(24, hour), 0)
-
+    fun getTemperatureForHour(hour: Int, hourWeight: Float = 1.0f): Temperature {
+        val hour = max(min(24, hour), 0)
         val mean = meanTempData[region] ?: 10f
-        val hourMultiplierBounds = tempDistributionDay[hourClean]
-        val monthMultiplierBounds = tempDistributionYear[month]
 
-        val hourMultiplier = randomFloat(hourMultiplierBounds.first,
-                                         hourMultiplierBounds.second)
-
-        val monthMultiplier = randomFloat(monthMultiplierBounds.first,
-                                          monthMultiplierBounds.second)
-
+        // Adjust using an approximate temperature distribution throughout
+        // the year in the northern hemisphere.
         val peakTemperature = mean + (monthMultiplier * mean)
-        val result = peakTemperature + (hourMultiplier * peakTemperature)
 
-        return Temperature(result, 0f, 0f)
+        // Add small variations throughout the day so that the lowest temperature
+        // is at about 12 AM and the highest at about 12 PM.
+        var hourFactor = tempDistributionDay[hour] + hourWeight
+        if (peakTemperature < 0) {
+            hourFactor = -hourFactor
+        }
+
+        val result = peakTemperature + hourFactor * peakTemperature
+        return Temperature(hour, result,
+                           randomFloat(0f, 100f),
+                           randomFloat(1000f, 1100f))
     }
 
-    fun getTemperaturesForDay(): Array<Temperature> {
+    fun getTemperaturesForDay(): List<Temperature> {
+        return generateRandomValues(24)
+    }
+
+    override fun generateRandomValues(amount: Int): List<Temperature> {
         println("generating data for region $region in month $month");
 
         var hour = 0
-        return Array(24) { getTemperaturesForHour(hour++) }
+        val hourWeight = randomFloat(-0.3f, 0.3f)
+
+        return List(amount) { getTemperatureForHour(hour++ % 24, hourWeight) }
     }
 }

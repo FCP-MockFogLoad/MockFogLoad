@@ -27,7 +27,7 @@ fun Application.module(testing: Boolean = false) {
             call.respondText("Welcome to Temperature Generator!", contentType = ContentType.Text.Plain)
         }
 
-        val temperatureGenerator = TemperatureGenerator("Bremen", 0);
+        val temperatureGenerator = TemperatureGenerator()
 
         // Config
         route("/config") {
