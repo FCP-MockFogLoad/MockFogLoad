@@ -11,9 +11,9 @@ data class MeanTemperature(val region: String, val meanTemp: Float) {
 
 }
 
-class TemperatureGenerator: Generator<Temperature>() {
-    var region: String = "Bremen"
-    var month: Int = 6
+class TemperatureGenerator: Generator<Temperature>("Temperature") {
+    var region: String
+    var month: Int = Random.nextInt(0, 11)
         set(value) {
             val monthMultiplierBounds = tempDistributionYear[value]
             this.monthMultiplier = randomFloat(monthMultiplierBounds.first,
@@ -77,6 +77,9 @@ class TemperatureGenerator: Generator<Temperature>() {
         for (temp in data) {
             meanTempData.set(temp.region, temp.meanTemp);
         }
+
+        this.region = meanTempData.keys.elementAt(
+            Random.nextInt(0, meanTempData.size))
 
         val monthMultiplierBounds = tempDistributionYear[month]
         this.monthMultiplier = randomFloat(monthMultiplierBounds.first,

@@ -1,5 +1,9 @@
 package com.fcp
 
+import com.fcp.generators.BaseGenerator
+import com.fcp.generators.GeneratorConfig
+import com.fcp.generators.IGeneratorValue
+import com.fcp.generators.power.PowerGenerator
 import com.fcp.temperature.TemperatureGenerator
 import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
@@ -7,10 +11,29 @@ import io.ktor.gson.gson
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.http.*
+import io.ktor.request.receive
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 import java.text.DateFormat
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
+
+fun handleDatapoint(data: IGeneratorValue) {
+    // TODO: send to endpoint
+    println(data.toString())
+}
+
+suspend fun mainLoop(generators: MutableList<BaseGenerator>) {
+    while (true) {
+        for (gen in generators) {
+            handleDatapoint(gen.generateValue())
+        }
+
+        delay(100)
+    }
+}
 
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
@@ -22,9 +45,14 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
+    val generators = mutableListOf<BaseGenerator>()
+    GlobalScope.launch {
+        mainLoop(generators)
+    }
+
     routing {
         get("/") {
-            call.respondText("Welcome to Temperature Generator!", contentType = ContentType.Text.Plain)
+            call.respondText("TODO: Swagger API here", contentType = ContentType.Text.Plain)
         }
 
         val temperatureGenerator = TemperatureGenerator()
@@ -34,17 +62,33 @@ fun Application.module(testing: Boolean = false) {
             // These GET routes are for debugging purposes only, POST routes will
             // be added once the configuration is final.
             get("/temperature/{region}/{month}") {
-                val newRegion = call.parameters["region"];
+                val newRegion = call.parameters["region"]
                 if (newRegion != null)
                 {
-                    temperatureGenerator.region = newRegion;
+                    temperatureGenerator.region = newRegion
                 }
 
-                val newMonth = call.parameters["month"];
+                val newMonth = call.parameters["month"]
                 if (newMonth != null)
                 {
                     temperatureGenerator.month =
-                        newMonth.toIntOrNull() ?: temperatureGenerator.month;
+                        newMonth.toIntOrNull() ?: temperatureGenerator.month
+                }
+            }
+
+            post {
+                val newGenerators = call.receive<Array<GeneratorConfig>>()
+                for (gen in newGenerators) {
+                    for (i in 0..gen.amount) {
+                        val newGen: BaseGenerator? = when (gen.type) {
+                            "Temperature" -> TemperatureGenerator()
+                            "Power" -> PowerGenerator()
+                            else -> null
+                        }
+
+                        if (newGen != null)
+                            generators.add(newGen)
+                    }
                 }
             }
         }
