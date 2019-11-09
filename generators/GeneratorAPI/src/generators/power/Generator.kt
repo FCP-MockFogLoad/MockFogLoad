@@ -28,19 +28,15 @@ class PowerGenerator: Generator<Power>("Power") {
     }
 
     private fun getVoltageFromPercentage() : Float{
-        return randomFloat(350f, 550f) * getPercentage()
+        return randomFloat(300f, 550f)
     }
-
-    private fun getPercentage(): Int{
-        return (60 until 100).random()/100
-    }
-
+    
     private fun getKilometresPerHour(): Int{
         return (40 until 180).random()
     }
 
     private fun getAmp() : Int{
-        return (16 until 32).random()
+        return ((16 until 32).random())
     }
 
 }
