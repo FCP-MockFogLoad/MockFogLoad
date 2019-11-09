@@ -109,6 +109,23 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
         }
+
+        val powerGenerator = PowerGenerator()
+        // Power Generator
+        route("/power"){
+            get("/random"){
+                call.respond(powerGenerator.getRandomValue())
+            }
+            get("/random/{amount}"){
+                when (val amountStr = call.parameters["amount"]) {
+                    null -> call.respond(HttpStatusCode.BadRequest)
+                    else -> {
+                        val amount = amountStr.toIntOrNull() ?: 1
+                        call.respond(powerGenerator.generateRandomValues(amount))
+                    }
+                }
+            }
+        }
     }
 }
 
