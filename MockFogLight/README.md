@@ -13,15 +13,23 @@ Jonathan Hasenburg, Martin Grambow, Elias Grünewald, Sascha Huk, David Bermbach
 Before running any roles, you should setup a virtualenv and install all requirements
 
 ```fish
-virtualenv venv
-source venv/bin/activate.fish
+virtualenv venv -p /usr/bin/python3.6
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
 In addition:
-- aws credentials configured in `~/.aws/credentials`
+- aws credentials configured in `~/.aws/credentials` and `~/.aws/config`
 - valid AWS ssh key stored at `./mockfog.pem`
 - read the individual READMEs for each role -> do what they say
+
+### Create key value pair in AWS
+- Go to AWS console and select `Key Pairs` under `NETWORK & SECURITY` (Right hand-side navigation pane)
+- Create a new Key Pair `mockfog`
+
+### AWS credentials
+- Create an IAM User and give it sufficient permissions.
+- Download credentials for this User and copy it to `~/.aws/credentials` and `~/.aws/config`
 
 ### Create Testbed Definition
 
