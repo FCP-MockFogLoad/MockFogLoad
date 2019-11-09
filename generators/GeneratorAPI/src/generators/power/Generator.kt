@@ -32,7 +32,7 @@ class PowerGenerator: Generator<Power>("Power") {
     }
 
     private fun getPercentage(): Int{
-        return (60 until 100).random()
+        return (60 until 100).random()/100
     }
 
     private fun getKilometresPerHour(): Int{
