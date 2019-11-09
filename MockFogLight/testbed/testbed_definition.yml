@@ -1,0 +1,53 @@
+---
+nodes:
+- type: machine
+  flavor: t3.nano
+  bandwidth_out: 10000
+  internal_ip: 10.0.2.187
+  role: broker
+  app_configs:
+  - connect_to: cloud1_client1
+    timeout: 10
+    internal_ip: 10.0.2.217
+  name: cloud1_broker1
+  delay_paths:
+  - target: cloud1_client1
+    internal_ip: 10.0.2.217
+    value: 6
+  - target: cloud1_client2
+    internal_ip: 10.0.2.214
+    value: 6
+- type: machine
+  flavor: t3.nano
+  bandwidth_out: 10000
+  internal_ip: 10.0.2.217
+  role: client
+  app_configs:
+  - connect_to: cloud1_client2
+    timeout: 10
+    internal_ip: 10.0.2.214
+  name: cloud1_client1
+  delay_paths:
+  - target: cloud1_broker1
+    internal_ip: 10.0.2.187
+    value: 6
+  - target: cloud1_client2
+    internal_ip: 10.0.2.214
+    value: 4
+- type: machine
+  flavor: t3.nano
+  bandwidth_out: 10000
+  internal_ip: 10.0.2.214
+  role: client
+  app_configs:
+  - connect_to: cloud1_client1
+    timeout: 10
+    internal_ip: 10.0.2.217
+  name: cloud1_client2
+  delay_paths:
+  - target: cloud1_broker1
+    internal_ip: 10.0.2.187
+    value: 6
+  - target: cloud1_client1
+    internal_ip: 10.0.2.217
+    value: 4
