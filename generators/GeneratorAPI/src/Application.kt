@@ -11,6 +11,11 @@ import io.ktor.gson.gson
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.http.*
+import io.ktor.client.*
+import io.ktor.client.engine.apache.*
+import io.ktor.client.request.post
+import io.ktor.client.features.json.*
+import io.ktor.client.request.url
 import io.ktor.request.receive
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -20,15 +25,18 @@ import java.text.DateFormat
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
-fun handleDatapoint(data: IGeneratorValue) {
-    // TODO: send to endpoint
-    println(data.toString())
+suspend fun handleDatapoint(data: IGeneratorValue, client: io.ktor.client.HttpClient) {
+    client.post<String> {
+        url("http://localhost:3000/")
+        contentType(ContentType.Application.Json)
+        body = data
+    }
 }
 
-suspend fun mainLoop(generators: MutableList<BaseGenerator>) {
+suspend fun mainLoop(generators: MutableList<BaseGenerator>, client: HttpClient) {
     while (true) {
         for (gen in generators) {
-            handleDatapoint(gen.generateValue())
+            handleDatapoint(gen.generateValue(), client)
         }
 
         delay(100)
@@ -45,9 +53,15 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
+    val client = HttpClient(Apache) {
+        install(JsonFeature) {
+            serializer = GsonSerializer()
+        }
+    }
+
     val generators = mutableListOf<BaseGenerator>()
     GlobalScope.launch {
-        mainLoop(generators)
+        mainLoop(generators, client)
     }
 
     routing {
@@ -76,7 +90,7 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
 
-            post {
+            post("/spawn") {
                 val newGenerators = call.receive<Array<GeneratorConfig>>()
                 for (gen in newGenerators) {
                     for (i in 0..gen.amount) {
@@ -90,6 +104,10 @@ fun Application.module(testing: Boolean = false) {
                             generators.add(newGen)
                     }
                 }
+            }
+
+            post("/clear") {
+                generators.clear();
             }
         }
 
