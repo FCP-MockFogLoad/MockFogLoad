@@ -30,7 +30,7 @@ class TaxiRidesGenerator: Generator<TaxiRides>("TaxiRides"){
     var taxiRides = listOf<TaxiRides>()
 
     init {
-        val file = File("resources/taxiData/nycTaxiRides100")
+        val file = File("resources/taxiData/nycTaxiRides_50M")
         taxiRides = readFileAndStoreInList(file)
     }
 
