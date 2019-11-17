@@ -71,8 +71,9 @@ class TemperatureGenerator: Generator<Temperature>("Temperature") {
     init {
         val gsonBuilder = GsonBuilder().serializeNulls()
         val gson = gsonBuilder.create()
-        val reader = File("resources/temperature/mean_temp.json").bufferedReader()
-        val data = gson.fromJson(reader, Array<MeanTemperature>::class.java)
+
+        val resource = this::class.java.classLoader.getResource("temperature/mean_temp.json").readText()
+        val data = gson.fromJson(resource, Array<MeanTemperature>::class.java)
 
         for (temp in data) {
             meanTempData.set(temp.region, temp.meanTemp);
