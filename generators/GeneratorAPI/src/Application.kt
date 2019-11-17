@@ -4,6 +4,8 @@ import com.fcp.generators.BaseGenerator
 import com.fcp.generators.GeneratorConfig
 import com.fcp.generators.IGeneratorValue
 import com.fcp.generators.power.PowerGenerator
+import com.fcp.generators.taxi.TaxiFaresGenerator
+import com.fcp.generators.taxi.TaxiRidesGenerator
 import com.fcp.temperature.TemperatureGenerator
 import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
@@ -97,6 +99,8 @@ fun Application.module(testing: Boolean = false) {
                         val newGen: BaseGenerator? = when (gen.type) {
                             "Temperature" -> TemperatureGenerator()
                             "Power" -> PowerGenerator()
+                            "TaxiFares" -> TaxiFaresGenerator()
+                            "TaxiRides" -> TaxiRidesGenerator()
                             else -> null
                         }
 
@@ -142,6 +146,22 @@ fun Application.module(testing: Boolean = false) {
                         call.respond(powerGenerator.generateRandomValues(amount))
                     }
                 }
+            }
+        }
+
+        val taxiFaresGenerator = TaxiFaresGenerator()
+        // Taxi Fares Generator
+        route("/taxiFares"){
+            get("/random"){
+                call.respond(taxiFaresGenerator.getRandomValue())
+            }
+        }
+
+        val taxiRidesGenerator = TaxiRidesGenerator()
+        // Taxi Rides Generator
+        route("/taxiRides"){
+            get("/random"){
+                call.respond(taxiRidesGenerator.getRandomValue())
             }
         }
     }
