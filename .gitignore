@@ -1,0 +1,7 @@
+# Byte-compiled / optimized / DLL files
+.DS_Store
+.idea/
+docs/build
+.*.sw?
+*.so
+*.o
