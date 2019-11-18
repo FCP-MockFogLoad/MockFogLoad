@@ -65,8 +65,9 @@ fun Application.module(testing: Boolean = false) {
     }
 
     routing {
+        val apiResource = this::class.java.classLoader.getResource("api/index.html").readText()
         get("/") {
-            call.respondText("TODO: Swagger API here", contentType = ContentType.Text.Plain)
+            call.respondText(apiResource, contentType = ContentType.Text.Html)
         }
 
         val temperatureGenerator = TemperatureGenerator()

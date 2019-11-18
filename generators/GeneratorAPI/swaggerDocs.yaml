@@ -1,0 +1,28 @@
+openapi: 3.0.0
+info:
+  description: Fog-Computing-Project Generator API
+  version: "1.0.0"
+  title: Fog-Computing-Project Generator API
+paths:
+  /config/clear:
+    post:
+        summary: "Deletes all active generators"
+  /config/spawn:
+    post:
+      summary: "Spawns new generators"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  amount:
+                    type: number
+                example:
+                  type: "Temperature"
+                  amount: 5

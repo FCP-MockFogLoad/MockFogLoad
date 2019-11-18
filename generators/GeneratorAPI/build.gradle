@@ -2,16 +2,22 @@ buildscript {
     repositories {
         jcenter()
     }
-    
+
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath "com.github.jengelman.gradle.plugins:shadow:5.0.0"
+        classpath 'io.swagger.codegen.v3:swagger-codegen-cli:3.0.5'
     }
+}
+
+plugins {
+    id 'org.hidetake.swagger.generator' version '2.18.1'
 }
 
 apply plugin: 'kotlin'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'application'
+apply plugin: 'org.hidetake.swagger.generator'
 
 group 'com.fcp'
 version '0.0.1'
@@ -46,4 +52,15 @@ dependencies {
     compile "io.ktor:ktor-client-gson:$ktor_version"
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
     compile "io.ktor:ktor-gson:$ktor_version"
+    swaggerCodegen 'io.swagger.codegen.v3:swagger-codegen-cli:3.0.5'
+}
+
+swaggerSources {
+    generator {
+        inputFile = file("swaggerDocs.yaml")
+        code {
+            language = 'html'
+            outputDir = file("resources/api/")
+        }
+    }
 }
