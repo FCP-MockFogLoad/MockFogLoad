@@ -1,13 +1,9 @@
 package com.fcp.temperature
 
 import com.fcp.generators.IGeneratorValue
+import java.time.LocalDateTime
 
-data class Temperature(val hour: Int,
-                       val celsius: Float,
-                       val humidity: Float,
-                       val pressure: Float) : IGeneratorValue {
+data class Temperature(override val date: LocalDateTime, override val value: Float) : IGeneratorValue {
     override val unit: String
         get() = "°C"
-    override val value: Float
-        get() = celsius
 }

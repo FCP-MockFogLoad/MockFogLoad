@@ -2,8 +2,10 @@ package com.fcp.generators.power
 
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
+import java.time.LocalDateTime
 
-data class Power(val kW: Float,
+data class Power(override val date: LocalDateTime,
+                 val kW: Float,
                  val voltage: Float,
                  val amp: Int,
                  val kmh: Int) : IGeneratorValue {
@@ -15,12 +17,8 @@ data class Power(val kW: Float,
 }
 
 class PowerGenerator: Generator<Power>("Power") {
-    override fun getRandomValue(): Power {
-        return Power(getKiloWatts(), getVoltageFromPercentage(), getAmp(),getKilometresPerHour())
-    }
-
-    override fun generateRandomValues(amount: Int): List<Power> {
-        return List(amount) { getRandomValue() }
+    override fun getRandomValue(date: LocalDateTime): Power {
+        return Power(date, getKiloWatts(), getVoltageFromPercentage(), getAmp(), getKilometresPerHour())
     }
 
     private fun getKiloWatts() : Float {

@@ -20,23 +20,39 @@ import io.ktor.request.receive
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.nio.file.Files
+import java.nio.file.Paths
 
 import java.text.DateFormat
+import java.time.LocalDateTime
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
-suspend fun handleDatapoint(data: IGeneratorValue, client: io.ktor.client.HttpClient) {
+fun isRunningInDockerContainer(): Boolean {
+    return try {
+        val stream = Files.lines(Paths.get("/proc/1/cgroup"))
+        stream.anyMatch { line -> line.contains("/docker") }
+    } catch (e: Exception) {
+        false
+    }
+}
+
+suspend fun handleDatapoint(data: IGeneratorValue, client: HttpClient) {
     client.post<String> {
-        url("http://localhost:3000/")
+        url(if (!isRunningInDockerContainer()) "http://localhost:3000/"
+            else "http://docker.for.mac.host.internal:3000/")
+
         contentType(ContentType.Application.Json)
         body = data
     }
 }
 
-suspend fun mainLoop(generators: MutableList<BaseGenerator>, client: HttpClient) {
+suspend fun mainLoop(date: LocalDateTime, generators: MutableList<BaseGenerator>, client: HttpClient) {
     while (true) {
         for (gen in generators) {
-            handleDatapoint(gen.generateValue(), client)
+            handleDatapoint(gen.generateValue(date), client)
         }
 
         delay(100)
@@ -59,9 +75,23 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
+    val mutex = Mutex()
+    var date = LocalDateTime.parse("2000-01-01T00:00:00")
     val generators = mutableListOf<BaseGenerator>()
+
     GlobalScope.launch {
-        mainLoop(generators, client)
+        while (true) {
+            mutex.withLock {
+                for (gen in generators) {
+                    handleDatapoint(gen.generateValue(date), client)
+                }
+            }
+
+            delay(100)
+            date = date.plusHours(1)
+        }
+//        mainLoop(mutex, date, generators, client)
+//        date = date.plusHours(1)
     }
 
     routing {
@@ -76,18 +106,11 @@ fun Application.module(testing: Boolean = false) {
         route("/config") {
             // These GET routes are for debugging purposes only, POST routes will
             // be added once the configuration is final.
-            get("/temperature/{region}/{month}") {
+            get("/temperature/{region}") {
                 val newRegion = call.parameters["region"]
                 if (newRegion != null)
                 {
                     temperatureGenerator.region = newRegion
-                }
-
-                val newMonth = call.parameters["month"]
-                if (newMonth != null)
-                {
-                    temperatureGenerator.month =
-                        newMonth.toIntOrNull() ?: temperatureGenerator.month
                 }
             }
 
@@ -101,29 +124,34 @@ fun Application.module(testing: Boolean = false) {
                             else -> null
                         }
 
-                        if (newGen != null)
-                            generators.add(newGen)
+                        if (newGen != null) {
+                            mutex.withLock {
+                                generators.add(newGen)
+                            }
+                        }
                     }
                 }
             }
 
             post("/clear") {
-                generators.clear();
+                mutex.withLock {
+                    generators.clear()
+                }
             }
         }
 
         // Temperature generator
         route("/temperature") {
             get("/random") {
-                call.respond(temperatureGenerator.getRandomValue());
+                call.respond(temperatureGenerator.getRandomValue(date));
             }
             get("/random/{amount}") {
                 when (val amountStr = call.parameters["amount"]) {
                     null -> call.respond(HttpStatusCode.BadRequest)
-                    "day" -> call.respond(temperatureGenerator.getTemperaturesForDay())
+                    "day" -> call.respond(temperatureGenerator.getTemperaturesForDay(date))
                     else -> {
                         val amount = amountStr.toIntOrNull() ?: 1
-                        call.respond(temperatureGenerator.generateRandomValues(amount))
+                        call.respond(temperatureGenerator.generateRandomValues(date, amount))
                     }
                 }
             }
@@ -133,14 +161,14 @@ fun Application.module(testing: Boolean = false) {
         // Power Generator
         route("/power"){
             get("/random"){
-                call.respond(powerGenerator.getRandomValue())
+                call.respond(powerGenerator.getRandomValue(date))
             }
             get("/random/{amount}"){
                 when (val amountStr = call.parameters["amount"]) {
                     null -> call.respond(HttpStatusCode.BadRequest)
                     else -> {
                         val amount = amountStr.toIntOrNull() ?: 1
-                        call.respond(powerGenerator.generateRandomValues(amount))
+                        call.respond(powerGenerator.generateRandomValues(date, amount))
                     }
                 }
             }
