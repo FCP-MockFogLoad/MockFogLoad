@@ -6,7 +6,6 @@ import java.io.File
 import kotlin.collections.listOf
 
 data class TaxiRides(val rideId: Long,
-
                      val isStart : String,
                      val startTime : String,
                      val endTime : String,

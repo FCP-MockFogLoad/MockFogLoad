@@ -155,6 +155,15 @@ fun Application.module(testing: Boolean = false) {
             get("/random"){
                 call.respond(taxiFaresGenerator.getRandomValue())
             }
+//            get("/random/{amount}") {
+//                when (val amountStr = call.parameters["amount"]) {
+//                    null -> call.respond(HttpStatusCode.BadRequest)
+//                    else -> {
+//                        val amount = amountStr.toIntOrNull() ?: 1
+//                        call.respond(taxiFaresGenerator.generateRandomValues(amount))
+//                    }
+//                }
+//            }
         }
 
         val taxiRidesGenerator = TaxiRidesGenerator()
