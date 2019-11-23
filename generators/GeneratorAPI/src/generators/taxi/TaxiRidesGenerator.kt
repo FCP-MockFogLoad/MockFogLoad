@@ -3,6 +3,7 @@ package com.fcp.generators.taxi
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
 import java.io.File
+import java.time.LocalDateTime
 import kotlin.collections.listOf
 
 data class TaxiRides(val rideId: Long,
@@ -15,7 +16,8 @@ data class TaxiRides(val rideId: Long,
                      val endLatitude : Float,
                      val passengerCount : Short,
                      val taxiId : Long,
-                     val driverId : Long) : IGeneratorValue{
+                     val driverId : Long,
+                     override val date: LocalDateTime) : IGeneratorValue{
 
     override val unit: String
         get() =  ""
@@ -49,15 +51,16 @@ class TaxiRidesGenerator: Generator<TaxiRides>("TaxiRides"){
             result.get(7).toFloatOrNull() ?: 0.0F,
             result.get(8).toShort(),
             result.get(9).toLong(),
-            result.get(10).toLong())
+            result.get(10).toLong(),
+            LocalDateTime.now())
     }
 
-    override fun getRandomValue(): TaxiRides {
+    override fun getRandomValue(date: LocalDateTime): TaxiRides {
         return taxiRides.random()
     }
 
-    override fun generateRandomValues(amount: Int): List<TaxiRides> {
-        return List(amount) { getRandomValue() }
+    override fun generateRandomValues(date: LocalDateTime, amount: Int): List<TaxiRides> {
+        return List(amount) { getRandomValue(date) }
     }
 
 }

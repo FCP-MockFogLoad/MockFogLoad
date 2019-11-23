@@ -3,6 +3,7 @@ package com.fcp.generators.heart
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
 import java.io.File
+import java.time.LocalDateTime
 import kotlin.collections.listOf
 
 data class HeartRate(val age: Float,
@@ -14,7 +15,9 @@ data class HeartRate(val age: Float,
                      val electroCardiographic: Float,
                      val heartRate: Float,
                      val angina: Float,
-                     val oldPeak: Float) : IGeneratorValue{
+                     val oldPeak: Float,
+                     override val date: LocalDateTime
+) : IGeneratorValue{
 
     override val unit: String
         get() =  ""
@@ -54,15 +57,16 @@ class HeartRateGenerator: Generator<HeartRate>("HeartRate"){
             result.get(6).toFloat(),
             result.get(7).toFloat(),
             result.get(8).toFloat(),
-            result.get(9).toFloat())
+            result.get(9).toFloat(),
+            LocalDateTime.now())
     }
 
-    override fun getRandomValue(): HeartRate {
+    override fun getRandomValue(date: LocalDateTime): HeartRate {
         return heartRate.random()
     }
 
-    override fun generateRandomValues(amount: Int): List<HeartRate> {
-        return List(amount) { getRandomValue() }
+    override fun generateRandomValues(date: LocalDateTime, amount: Int): List<HeartRate> {
+        return List(amount) { getRandomValue(date) }
     }
 
 }

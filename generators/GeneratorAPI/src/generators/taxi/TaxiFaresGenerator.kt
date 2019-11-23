@@ -3,6 +3,7 @@ package com.fcp.generators.taxi
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
 import java.io.File
+import java.time.LocalDateTime
 import kotlin.collections.listOf
 
 data class TaxiFares(val rideId: Long,
@@ -12,7 +13,8 @@ data class TaxiFares(val rideId: Long,
                      val paymentType : String,
                      val tip : Float,
                      val tolls : Float,
-                     val totalFare : Float) : IGeneratorValue{
+                     val totalFare : Float,
+                     override val date: LocalDateTime) : IGeneratorValue{
 
     override val unit: String
         get() =  "$"
@@ -43,15 +45,16 @@ class TaxiFaresGenerator: Generator<TaxiFares>("TaxiFares"){
             result.get(4),
             result.get(5).toFloat(),
             result.get(6).toFloat(),
-            result.get(7).toFloat())
+            result.get(7).toFloat(),
+            LocalDateTime.now())
     }
 
-    override fun getRandomValue(): TaxiFares {
+    override fun getRandomValue(date: LocalDateTime): TaxiFares {
         return taxiFares.random()
     }
 
-    override fun generateRandomValues(amount: Int): List<TaxiFares> {
-        return List(amount) { getRandomValue() }
+    override fun generateRandomValues(date: LocalDateTime, amount: Int): List<TaxiFares> {
+        return List(amount) { getRandomValue(date) }
     }
 
 }
