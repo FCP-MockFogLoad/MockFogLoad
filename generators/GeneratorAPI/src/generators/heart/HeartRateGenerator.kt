@@ -2,12 +2,11 @@ package com.fcp.generators.heart
 
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
-import com.fcp.generators.taxi.TaxiFares
 import java.io.File
 import kotlin.collections.listOf
 
 data class HeartRate(val age: Float,
-                     val sex: Float,
+                     val sex: String,
                      val chestPainLevel: Float,
                      val bloodPressure: Float,
                      val cholestoral: Float,
@@ -39,9 +38,15 @@ class HeartRateGenerator: Generator<HeartRate>("HeartRate"){
 
     private fun mapToHeartRate(line : String) : HeartRate{
         var result: List<String> = line.split(" ").map { it.trim() }
+        var gender: String
+        if(result.get(1).toFloat() == 0.0f){
+            gender = "Male"
+        }else
+            gender = "Female"
+
         return HeartRate(
             result.get(0).toFloat(),
-            result.get(1).toFloat(),
+            gender,
             result.get(2).toFloat(),
             result.get(3).toFloat(),
             result.get(4).toFloat(),
