@@ -3,6 +3,7 @@ package com.fcp
 import com.fcp.generators.BaseGenerator
 import com.fcp.generators.GeneratorConfig
 import com.fcp.generators.IGeneratorValue
+import com.fcp.generators.heart.HeartRateGenerator
 import com.fcp.generators.power.PowerGenerator
 import com.fcp.generators.taxi.TaxiFaresGenerator
 import com.fcp.generators.taxi.TaxiRidesGenerator
@@ -101,6 +102,7 @@ fun Application.module(testing: Boolean = false) {
                             "Power" -> PowerGenerator()
                             "TaxiFares" -> TaxiFaresGenerator()
                             "TaxiRides" -> TaxiRidesGenerator()
+                            "HeartRate" -> HeartRateGenerator()
                             else -> null
                         }
 
@@ -155,15 +157,15 @@ fun Application.module(testing: Boolean = false) {
             get("/random"){
                 call.respond(taxiFaresGenerator.getRandomValue())
             }
-//            get("/random/{amount}") {
-//                when (val amountStr = call.parameters["amount"]) {
-//                    null -> call.respond(HttpStatusCode.BadRequest)
-//                    else -> {
-//                        val amount = amountStr.toIntOrNull() ?: 1
-//                        call.respond(taxiFaresGenerator.generateRandomValues(amount))
-//                    }
-//                }
-//            }
+            get("/random/{amount}") {
+                when (val amountStr = call.parameters["amount"]) {
+                    null -> call.respond(HttpStatusCode.BadRequest)
+                    else -> {
+                        val amount = amountStr.toIntOrNull() ?: 1
+                        call.respond(taxiFaresGenerator.generateRandomValues(amount))
+                    }
+                }
+            }
         }
 
         val taxiRidesGenerator = TaxiRidesGenerator()
@@ -172,7 +174,34 @@ fun Application.module(testing: Boolean = false) {
             get("/random"){
                 call.respond(taxiRidesGenerator.getRandomValue())
             }
+            get("/random/{amount}") {
+                when (val amountStr = call.parameters["amount"]) {
+                    null -> call.respond(HttpStatusCode.BadRequest)
+                    else -> {
+                        val amount = amountStr.toIntOrNull() ?: 1
+                        call.respond(taxiRidesGenerator.generateRandomValues(amount))
+                    }
+                }
+            }
         }
+
+        val heartRateGenerator = HeartRateGenerator()
+        // Heart Rate Generator
+        route("/heartRate"){
+            get("/random"){
+                call.respond(heartRateGenerator.getRandomValue())
+            }
+            get("/random/{amount}") {
+                when (val amountStr = call.parameters["amount"]) {
+                    null -> call.respond(HttpStatusCode.BadRequest)
+                    else -> {
+                        val amount = amountStr.toIntOrNull() ?: 1
+                        call.respond(heartRateGenerator.generateRandomValues(amount))
+                    }
+                }
+            }
+        }
+
     }
 }
 

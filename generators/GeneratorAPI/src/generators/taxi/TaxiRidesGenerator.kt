@@ -56,4 +56,8 @@ class TaxiRidesGenerator: Generator<TaxiRides>("TaxiRides"){
         return taxiRides.random()
     }
 
+    override fun generateRandomValues(amount: Int): List<TaxiRides> {
+        return List(amount) { getRandomValue() }
+    }
+
 }
