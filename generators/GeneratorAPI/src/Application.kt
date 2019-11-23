@@ -184,14 +184,14 @@ fun Application.module(testing: Boolean = false) {
         // Taxi Fares Generator
         route("/taxiFares"){
             get("/random"){
-                call.respond(taxiFaresGenerator.getRandomValue())
+                call.respond(taxiFaresGenerator.getRandomValue(date))
             }
             get("/random/{amount}") {
                 when (val amountStr = call.parameters["amount"]) {
                     null -> call.respond(HttpStatusCode.BadRequest)
                     else -> {
                         val amount = amountStr.toIntOrNull() ?: 1
-                        call.respond(taxiFaresGenerator.generateRandomValues(amount))
+                        call.respond(taxiFaresGenerator.generateRandomValues(date,amount))
                     }
                 }
             }
@@ -201,14 +201,14 @@ fun Application.module(testing: Boolean = false) {
         // Taxi Rides Generator
         route("/taxiRides"){
             get("/random"){
-                call.respond(taxiRidesGenerator.getRandomValue())
+                call.respond(taxiRidesGenerator.getRandomValue(date))
             }
             get("/random/{amount}") {
                 when (val amountStr = call.parameters["amount"]) {
                     null -> call.respond(HttpStatusCode.BadRequest)
                     else -> {
                         val amount = amountStr.toIntOrNull() ?: 1
-                        call.respond(taxiRidesGenerator.generateRandomValues(amount))
+                        call.respond(taxiRidesGenerator.generateRandomValues(date, amount))
                     }
                 }
             }
@@ -218,14 +218,14 @@ fun Application.module(testing: Boolean = false) {
         // Heart Rate Generator
         route("/heartRate"){
             get("/random"){
-                call.respond(heartRateGenerator.getRandomValue())
+                call.respond(heartRateGenerator.getRandomValue(date))
             }
             get("/random/{amount}") {
                 when (val amountStr = call.parameters["amount"]) {
                     null -> call.respond(HttpStatusCode.BadRequest)
                     else -> {
                         val amount = amountStr.toIntOrNull() ?: 1
-                        call.respond(heartRateGenerator.generateRandomValues(amount))
+                        call.respond(heartRateGenerator.generateRandomValues(date, amount))
                     }
                 }
             }
