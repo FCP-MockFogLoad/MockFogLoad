@@ -3,10 +3,16 @@ info:
   description: Fog-Computing-Project Generator API
   version: "1.0.0"
   title: Fog-Computing-Project Generator API
+
+servers:
+  - url: http://0.0.0.0:8080
 paths:
   /config/clear:
     post:
         summary: "Deletes all active generators"
+        responses:
+          '200':
+            description: Deleted
   /config/spawn:
     post:
       summary: "Spawns new generators"
@@ -26,3 +32,185 @@ paths:
                 example:
                   type: "Temperature"
                   amount: 5
+      responses:
+        '200':
+          description: Created
+  /temperature/random:
+    get:
+      summary: Returns a Temperature Object.
+      description: A Temperature generated Object is a randomly picked temperature, humidity and pressure for a specific region for a specific time.
+      responses:
+        '200':
+          description: A Temperature Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hour:
+                    type: integer
+                  celsius:
+                    type: number
+                    example: 20°C
+                  humidity:
+                    type: number
+                  pressure:
+                    type: number
+        default:
+          description: Unexpecter error
+
+  /temperature/random/{amount}:
+    get:
+      summary: Returns an amount of Temperature Objects.
+      description: A Temperature generated Object contains temperature, humidity and pressure for a specific region for a specific time.
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          description: The amount of Temperature Objects to return.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: An amount of Temperature Objects.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hour:
+                    type: integer
+                  celsius:
+                    type: number
+                    example: 20°C
+                  humidity:
+                    type: number
+                  pressure:
+                    type: number
+        '400':
+          description: The specified amount is null.
+        default:
+          description: If amount input not integer then it will respond with only one Temperature Object
+
+  /power/random:
+    get:
+      summary: Returns a random Power Object
+      description: A Power Object contains KiloWatts, Voltage, Current, Kilometres per hour.
+      responses:
+        '200':
+          description: A Power Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kW:
+                    type: number
+                  voltage:
+                    type: number
+                  amp:
+                    type: integer
+                  kmh:
+                    type: integer
+        default:
+          description: Unexpecter error
+  /power/random/{amount}:
+    get:
+      summary: Returns an amount of Power Objects.
+      description: A Power generated Object contains KiloWatts, Voltage, Current, Kilometres per hour.
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          description: The amount of Power Objects to return.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: A Power Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kW:
+                    type: number
+                  voltage:
+                    type: number
+                  amp:
+                    type: integer
+                  kmh:
+                    type: integer
+        '400':
+          description: The specified amount is null.
+        default:
+          description: If amount input not integer then it will respond with only one Power Object
+  /taxiFares/random:
+    get:
+      summary: Returns a random TaxiFare Object
+      description: A TaxiFare Object contains information about individual taxi ride fare data in New York City.
+      responses:
+        '200':
+          description: A TaxiFare Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rideId:
+                    type: number
+                  taxiId:
+                    type: number
+                  driverId:
+                    type: number
+                  startTime:
+                    type: string
+                  paymentType:
+                    type: string
+                  tip:
+                    type: number
+                  tolls:
+                    type: number
+                  totalFare:
+                    type: number
+        default:
+          description: Unexpecter error
+  /taxiRides/random:
+    get:
+      summary: Returns a random TaxiRide Object
+      description: A TaxiRide Object contains information about individual taxi ride data in New York City.
+      responses:
+        '200':
+          description: A TaxiRide Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rideId:
+                    type: number
+                  isStart:
+                    type: string
+                  startTime:
+                    type: string
+                  endTime:
+                    type: string
+                  startLongitude:
+                    type: number
+                  startLatitude:
+                    type: number
+                  endLongitude:
+                    type: number
+                  endLatitude:
+                    type: number
+                  passengerCount:
+                    type: number
+                  taxiId:
+                    type: number
+                  driverId:
+                    type: number
+        default:
+          description: Unexpecter error
+
