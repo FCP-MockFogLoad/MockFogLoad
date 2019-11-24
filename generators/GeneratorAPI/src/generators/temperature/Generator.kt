@@ -1,8 +1,11 @@
 package com.fcp.temperature
 
+import com.amazonaws.AmazonServiceException
+import com.amazonaws.services.s3.AmazonS3
 import com.fcp.generators.Generator
 import com.google.gson.GsonBuilder
 import java.time.LocalDateTime
+import java.util.*
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -11,36 +14,90 @@ data class TemperatureData(val mean: Float,
                            val datapoints: Array<TemperatureDataPoint>,
                            val region: String) {}
 
-class TemperatureGenerator: Generator<Temperature>("Temperature") {
+class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperature>("Temperature") {
     var region: String = "BerlinDahlem"
     val variation = 5f
-
-    private var meanTemperatures = mutableListOf<Float>()
+    private var meanTemperatures: MutableList<Float>
 
     init {
-        val gsonBuilder = GsonBuilder().serializeNulls()
-        val gson = gsonBuilder.create()
+        meanTemperatures = getMeanTemperatures(s3, bucketName, region)
+    }
 
-        val resource = this::class.java.classLoader.getResource("temperature/" + region + ".json").readText()
-        val data = gson.fromJson(resource, TemperatureData::class.java)
+    companion object {
+        val regions = arrayOf(
+            "BerlinDahlem",
+            "Bremen",
+            "Frankfurt",
+            "Salzburg",
+            "Wien"
+        )
 
-        var n = 0
-        for (dp in data.datapoints) {
-            // Ignore leap days.
-            if (dp.date.endsWith("0229")) {
-                continue
-            }
+        val meanTemperatures = HashMap<String, MutableList<Float>>()
 
-            meanTemperatures.add(dp.temp)
+        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
+            for (region in regions) {
+                val resource = this::class.java.classLoader.getResource("temperature/" + region + ".json").readText()
+                println("uploading $region...")
 
-            if (dp.date.endsWith("1231")) {
-                // Only use full years.
-                if (data.datapoints.size - n < 365) {
-                    break
+                try {
+                    s3.putObject(bucketName, "temperature/" + region, resource)
+                    println("done!")
+                } catch (e: AmazonServiceException) {
+                    println(e.message)
+                    return true
                 }
             }
 
-            ++n
+            return false
+        }
+
+        fun getMeanTemperatures(s3: AmazonS3, bucketName: String, region: String): MutableList<Float> {
+            var list = meanTemperatures[region]
+            if (list != null) {
+                return list
+            }
+
+            val dataStr: String = try {
+                val resource = s3.getObject(bucketName, "temperature/" + region)
+                val sc = Scanner(resource.objectContent)
+                val sb = StringBuffer()
+                while (sc.hasNext()) {
+                    sb.append(sc.nextLine())
+                }
+
+                sb.toString()
+            } catch (e: Exception) {
+                print(e.message)
+                "{}"
+            }
+
+            val gsonBuilder = GsonBuilder().serializeNulls()
+            val gson = gsonBuilder.create()
+            val data = gson.fromJson(dataStr, TemperatureData::class.java)
+
+            list = mutableListOf<Float>()
+
+            var n = 0
+            for (dp in data.datapoints) {
+                // Ignore leap days.
+                if (dp.date.endsWith("0229")) {
+                    continue
+                }
+
+                list.add(dp.temp)
+
+                if (dp.date.endsWith("1231")) {
+                    // Only use full years.
+                    if (data.datapoints.size - n < 365) {
+                        break
+                    }
+                }
+
+                ++n
+            }
+
+            meanTemperatures[region] = list
+            return list
         }
     }
 

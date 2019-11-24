@@ -1,10 +1,12 @@
 package com.fcp
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.fcp.generators.BaseGenerator
 import com.fcp.generators.GeneratorConfig
 import com.fcp.generators.IGeneratorValue
 import com.fcp.generators.power.PowerGenerator
 import com.fcp.temperature.TemperatureGenerator
+import com.natpryce.konfig.*
 import io.ktor.application.*
 import io.ktor.features.ContentNegotiation
 import io.ktor.gson.gson
@@ -27,6 +29,16 @@ import java.nio.file.Paths
 
 import java.text.DateFormat
 import java.time.LocalDateTime
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.AmazonS3
+import com.typesafe.config.ConfigFactory.systemProperties
+import com.amazonaws.auth.BasicAWSCredentials
+import sun.security.krb5.internal.Krb5.getErrorMessage
+import com.amazonaws.services.s3.model.AmazonS3Exception
+import com.amazonaws.services.s3.model.Bucket
+import kotlin.system.exitProcess
+
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -49,16 +61,6 @@ suspend fun handleDatapoint(data: IGeneratorValue, client: HttpClient) {
     }
 }
 
-suspend fun mainLoop(date: LocalDateTime, generators: MutableList<BaseGenerator>, client: HttpClient) {
-    while (true) {
-        for (gen in generators) {
-            handleDatapoint(gen.generateValue(date), client)
-        }
-
-        delay(100)
-    }
-}
-
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
@@ -68,6 +70,35 @@ fun Application.module(testing: Boolean = false) {
             setPrettyPrinting()
         }
     }
+
+    val config = ConfigurationProperties.fromResource("credentials")
+    val awsCreds = BasicAWSCredentials(
+        config[Key("aws_access_key_id", stringType)],
+        config[Key("aws_secret_access_key", stringType)])
+
+    val s3Client = AmazonS3ClientBuilder.standard()
+        .withCredentials(AWSStaticCredentialsProvider(awsCreds))
+        .withRegion("eu-north-1")
+        .build()
+
+    val bucketName = config[Key("bucket_name", stringType)]
+    val b = if (s3Client.doesBucketExistV2(bucketName)) {
+        println("found existing bucket...")
+        s3Client.listBuckets().first { bucket -> bucket.name == bucketName }
+    } else {
+        try {
+            println("creating bucket...")
+            s3Client.createBucket(bucketName)
+        } catch (e: AmazonS3Exception) {
+            println(e.errorMessage)
+            exitProcess(1)
+        }
+    }
+
+//    if (TemperatureGenerator.uploadResources(s3Client, bucketName)) {
+//        println("error uploading temperature data, exiting")
+//        exitProcess(1)
+//    }
 
     val client = HttpClient(Apache) {
         install(JsonFeature) {
@@ -90,8 +121,6 @@ fun Application.module(testing: Boolean = false) {
             delay(100)
             date = date.plusHours(1)
         }
-//        mainLoop(mutex, date, generators, client)
-//        date = date.plusHours(1)
     }
 
     routing {
@@ -100,7 +129,7 @@ fun Application.module(testing: Boolean = false) {
             call.respondText(apiResource, contentType = ContentType.Text.Html)
         }
 
-        val temperatureGenerator = TemperatureGenerator()
+        val temperatureGenerator = TemperatureGenerator(s3Client, bucketName)
 
         // Config
         route("/config") {
@@ -119,7 +148,7 @@ fun Application.module(testing: Boolean = false) {
                 for (gen in newGenerators) {
                     for (i in 0..gen.amount) {
                         val newGen: BaseGenerator? = when (gen.type) {
-                            "Temperature" -> TemperatureGenerator()
+                            "Temperature" -> TemperatureGenerator(s3Client, bucketName)
                             "Power" -> PowerGenerator()
                             else -> null
                         }

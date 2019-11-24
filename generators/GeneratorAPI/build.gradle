@@ -53,6 +53,9 @@ dependencies {
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
     compile "io.ktor:ktor-gson:$ktor_version"
     swaggerCodegen 'io.swagger.codegen.v3:swagger-codegen-cli:3.0.5'
+    implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.228')
+    implementation 'com.amazonaws:aws-java-sdk-s3'
+    implementation 'com.natpryce:konfig:1.6.10.0'
 }
 
 swaggerSources {

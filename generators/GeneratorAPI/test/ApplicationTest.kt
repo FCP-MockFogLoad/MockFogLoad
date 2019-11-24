@@ -11,8 +11,8 @@ import io.ktor.server.testing.*
 class ApplicationTest {
     @Test
     fun testRoot() {
-        withTestApplication({ module(testing = true) }) {
-
-        }
+//        withTestApplication({ module(testing = true) }) {
+//
+//        }
     }
 }
