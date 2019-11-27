@@ -2,12 +2,14 @@ package com.fcp.temperature
 
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.services.s3.AmazonS3
+import com.fcp.generators.BaseGenerator
 import com.fcp.generators.Generator
 import com.google.gson.GsonBuilder
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.random.Random
 
 data class TemperatureDataPoint(val date: String, val temp: Float) {}
 data class TemperatureData(val mean: Float,
@@ -15,11 +17,12 @@ data class TemperatureData(val mean: Float,
                            val region: String) {}
 
 class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperature>("Temperature") {
-    var region: String = "BerlinDahlem"
+    var region: String
     val variation = 5f
     private var meanTemperatures: MutableList<Float>
 
     init {
+        region = regions[Random.nextInt(0, regions.size)]
         meanTemperatures = getMeanTemperatures(s3, bucketName, region)
     }
 
@@ -34,16 +37,11 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
 
         val meanTemperatures = HashMap<String, MutableList<Float>>()
 
+        @Suppress("unused")
         fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
             for (region in regions) {
-                val resource = this::class.java.classLoader.getResource("temperature/" + region + ".json").readText()
-                println("uploading $region...")
-
-                try {
-                    s3.putObject(bucketName, "temperature/" + region, resource)
-                    println("done!")
-                } catch (e: AmazonServiceException) {
-                    println(e.message)
+                if (uploadResource(s3, bucketName, "temperature/$region.json",
+                              "temperature/$region")) {
                     return true
                 }
             }
@@ -58,16 +56,9 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
             }
 
             val dataStr: String = try {
-                val resource = s3.getObject(bucketName, "temperature/" + region)
-                val sc = Scanner(resource.objectContent)
-                val sb = StringBuffer()
-                while (sc.hasNext()) {
-                    sb.append(sc.nextLine())
-                }
-
-                sb.toString()
+                loadResource(s3, bucketName, "temperature/$region")
             } catch (e: Exception) {
-                print(e.message)
+                println(e.message)
                 "{}"
             }
 

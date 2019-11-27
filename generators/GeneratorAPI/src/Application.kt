@@ -29,19 +29,39 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.nio.file.Files
 import java.nio.file.Paths
-
 import java.text.DateFormat
 import java.time.LocalDateTime
-import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.AmazonS3
-import com.typesafe.config.ConfigFactory.systemProperties
 import com.amazonaws.auth.BasicAWSCredentials
-import sun.security.krb5.internal.Krb5.getErrorMessage
 import com.amazonaws.services.s3.model.AmazonS3Exception
-import com.amazonaws.services.s3.model.Bucket
 import kotlin.system.exitProcess
 
+data class ApplicationConfig(var endpoints: Array<String> = arrayOf(),
+                             var delay: Long = 100) {
+    fun copy(other: ApplicationConfig) {
+        this.endpoints = other.endpoints
+        this.delay = other.delay
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ApplicationConfig
+
+        if (!endpoints.contentEquals(other.endpoints)) return false
+        if (delay != other.delay) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = endpoints.contentHashCode()
+        result = 31 * result + delay.hashCode()
+        return result
+    }
+}
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -54,13 +74,25 @@ fun isRunningInDockerContainer(): Boolean {
     }
 }
 
-suspend fun handleDatapoint(data: IGeneratorValue, client: HttpClient) {
-    client.post<String> {
-        url(if (!isRunningInDockerContainer()) "http://localhost:3000/"
-            else "http://docker.for.mac.host.internal:3000/")
+suspend fun handleDatapoint(config: ApplicationConfig, data: IGeneratorValue, client: HttpClient) {
+    for (endpoint in config.endpoints) {
+        client.post<String> {
+            url(endpoint)
+            contentType(ContentType.Application.Json)
+            body = data
+        }
+    }
+}
 
-        contentType(ContentType.Application.Json)
-        body = data
+@Suppress("unused")
+fun uploadGeneratorData(s3Client: AmazonS3, bucketName: String) {
+    if (TemperatureGenerator.uploadResources(s3Client, bucketName)) {
+        println("error uploading temperature data, exiting")
+        exitProcess(1)
+    }
+    if (HeartRateGenerator.uploadResources(s3Client, bucketName)) {
+        println("error uploading heart rate data, exiting")
+        exitProcess(1)
     }
 }
 
@@ -74,6 +106,10 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
+    val appConfig = ApplicationConfig(arrayOf(
+        if (!isRunningInDockerContainer()) "http://localhost:3000/"
+        else "http://docker.for.mac.host.internal:3000/"))
+
     val config = ConfigurationProperties.fromResource("credentials")
     val awsCreds = BasicAWSCredentials(
         config[Key("aws_access_key_id", stringType)],
@@ -85,9 +121,8 @@ fun Application.module(testing: Boolean = false) {
         .build()
 
     val bucketName = config[Key("bucket_name", stringType)]
-    val b = if (s3Client.doesBucketExistV2(bucketName)) {
+    if (s3Client.doesBucketExistV2(bucketName)) {
         println("found existing bucket...")
-        s3Client.listBuckets().first { bucket -> bucket.name == bucketName }
     } else {
         try {
             println("creating bucket...")
@@ -98,10 +133,8 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
-//    if (TemperatureGenerator.uploadResources(s3Client, bucketName)) {
-//        println("error uploading temperature data, exiting")
-//        exitProcess(1)
-//    }
+    // For debugging only
+    uploadGeneratorData(s3Client, bucketName)
 
     val client = HttpClient(Apache) {
         install(JsonFeature) {
@@ -117,11 +150,11 @@ fun Application.module(testing: Boolean = false) {
         while (true) {
             mutex.withLock {
                 for (gen in generators) {
-                    handleDatapoint(gen.generateValue(date), client)
+                    handleDatapoint(appConfig, gen.generateValue(date), client)
                 }
             }
 
-            delay(100)
+            delay(appConfig.delay)
             date = date.plusHours(1)
         }
     }
@@ -132,18 +165,17 @@ fun Application.module(testing: Boolean = false) {
             call.respondText(apiResource, contentType = ContentType.Text.Html)
         }
 
-        val temperatureGenerator = TemperatureGenerator(s3Client, bucketName)
+        // Health check used by the orchestrator to check whether or not the
+        // generators are working correctly
+        get("/healthcheck") {
+            call.respond(HttpStatusCode.OK)
+        }
 
         // Config
         route("/config") {
-            // These GET routes are for debugging purposes only, POST routes will
-            // be added once the configuration is final.
-            get("/temperature/{region}") {
-                val newRegion = call.parameters["region"]
-                if (newRegion != null)
-                {
-                    temperatureGenerator.region = newRegion
-                }
+            post {
+                val newConfig = call.receive<ApplicationConfig>()
+                appConfig.copy(newConfig)
             }
 
             post("/spawn") {
@@ -155,7 +187,7 @@ fun Application.module(testing: Boolean = false) {
                             "Power" -> PowerGenerator()
                             "TaxiFares" -> TaxiFaresGenerator()
                             "TaxiRides" -> TaxiRidesGenerator()
-                            "HeartRate" -> HeartRateGenerator()
+                            "HeartRate" -> HeartRateGenerator(s3Client, bucketName)
                             else -> null
                         }
 
@@ -176,9 +208,10 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Temperature generator
+        val temperatureGenerator = TemperatureGenerator(s3Client, bucketName)
         route("/temperature") {
             get("/random") {
-                call.respond(temperatureGenerator.getRandomValue(date));
+                call.respond(temperatureGenerator.getRandomValue(date))
             }
             get("/random/{amount}") {
                 when (val amountStr = call.parameters["amount"]) {
@@ -192,8 +225,8 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
-        val powerGenerator = PowerGenerator()
         // Power Generator
+        val powerGenerator = PowerGenerator()
         route("/power"){
             get("/random"){
                 call.respond(powerGenerator.getRandomValue(date))
@@ -209,8 +242,8 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
-        val taxiFaresGenerator = TaxiFaresGenerator()
         // Taxi Fares Generator
+        val taxiFaresGenerator = TaxiFaresGenerator()
         route("/taxiFares"){
             get("/random"){
                 call.respond(taxiFaresGenerator.getRandomValue(date))
@@ -226,8 +259,8 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
-        val taxiRidesGenerator = TaxiRidesGenerator()
         // Taxi Rides Generator
+        val taxiRidesGenerator = TaxiRidesGenerator()
         route("/taxiRides"){
             get("/random"){
                 call.respond(taxiRidesGenerator.getRandomValue(date))
@@ -243,8 +276,8 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
-        val heartRateGenerator = HeartRateGenerator()
         // Heart Rate Generator
+        val heartRateGenerator = HeartRateGenerator(s3Client, bucketName)
         route("/heartRate"){
             get("/random"){
                 call.respond(heartRateGenerator.getRandomValue(date))

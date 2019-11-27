@@ -1,7 +1,9 @@
 package com.fcp.generators
 
-import java.time.LocalDate
+import com.amazonaws.AmazonServiceException
+import com.amazonaws.services.s3.AmazonS3
 import java.time.LocalDateTime
+import java.util.*
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -23,6 +25,45 @@ interface IGeneratorValue {
 abstract class BaseGenerator(val type: String)  {
     /** Return a random value of the generated type, mainly used for testing. */
     abstract fun generateValue(date: LocalDateTime): IGeneratorValue
+
+    companion object {
+        /** Upload a resource to Amazon S3. */
+        fun uploadResource(
+            s3: AmazonS3, bucketName: String,
+            resourcePath: String, key: String,
+            forceOverride: Boolean = false
+        ): Boolean {
+            if (s3.doesObjectExist(bucketName, key) && !forceOverride) {
+                println("not uploading $key because it already exists")
+                return false
+            }
+
+            val resource = this::class.java.classLoader.getResource(resourcePath).readText()
+            println("uploading $key...")
+
+            try {
+                s3.putObject(bucketName, key, resource)
+                println("done!")
+            } catch (e: AmazonServiceException) {
+                println(e.message)
+                return true
+            }
+
+            return false
+        }
+
+        /** Load a resource from Amazon S3. */
+        fun loadResource(s3: AmazonS3, bucketName: String, key: String): String {
+            val resource = s3.getObject(bucketName, key)
+            val sc = Scanner(resource.objectContent)
+            val sb = StringBuffer()
+            while (sc.hasNext()) {
+                sb.append(sc.nextLine())
+            }
+
+            return sb.toString()
+        }
+    }
 }
 
 abstract class Generator<T: IGeneratorValue>(type: String): BaseGenerator(type) {
