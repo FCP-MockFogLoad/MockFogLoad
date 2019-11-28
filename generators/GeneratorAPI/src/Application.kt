@@ -35,31 +35,213 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.model.AmazonS3Exception
+import com.google.gson.JsonObject
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalUnit
+import java.util.*
+import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
 
-data class ApplicationConfig(var endpoints: Array<String> = arrayOf(),
-                             var delay: Long = 100) {
-    fun copy(other: ApplicationConfig) {
-        this.endpoints = other.endpoints
-        this.delay = other.delay
+class ActiveGenerator(val id: String, val config: ApplicationConfig, val generator: BaseGenerator) {
+    /** Generator frequency in milliseconds. */
+    var frequency = 100L
+
+    /** Whether or not the generator is currently active. */
+    var active = false
+        set(value) {
+            if (active && !value) {
+                field = false
+
+                // Stop the timer task.
+                timerTask!!.cancel()
+                timerTask = null
+            } else if (!active && value) {
+                field = true
+
+                println("starting ${generator.type} generator")
+                reschedule()
+            }
+        }
+
+    /** The granularity of the generator, i.e. the time in milliseconds
+     * betweeen generated datapoints. */
+    var granularity = 100L
+
+    /** The endpoint the generator should send to. */
+    var endpoint = if (!isRunningInDockerContainer()) "http://localhost:3000/"
+        else "http://docker.for.mac.host.internal:3000/"
+
+    /** The current date used for data generation. */
+    var currentDate = LocalDateTime.now()
+
+    /** The current timer task used for data generation */
+    var timerTask: TimerTask? = null
+
+    init {
+        config.generators[id] = this
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    private fun reschedule() {
+        if (!active) {
+            return
+        }
 
-        other as ApplicationConfig
+        timerTask = config.timer.schedule(frequency) {
+            GlobalScope.launch {
+                config.client.post<String> {
+                    url(endpoint)
+                    contentType(ContentType.Application.Json)
+                    body = generator.generateValue(currentDate)
+                }
 
-        if (!endpoints.contentEquals(other.endpoints)) return false
-        if (delay != other.delay) return false
+                currentDate = currentDate.plus(granularity, ChronoUnit.MILLIS)
+                reschedule()
+            }
+        }
+    }
+}
 
-        return true
+data class GeneratorEvent(val type: String, val timestamp: String, val data: JsonObject) {
+    fun schedule(config: ApplicationConfig) {
+        val date = if (timestamp.startsWith("+")) {
+            config.startDate.plus(timestamp.toLong(), ChronoUnit.MILLIS)
+        } else if (timestamp.matches(Regex("\\d+"))) {
+            LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(timestamp.toLong()),
+                TimeZone.getDefault().toZoneId())
+        } else {
+            LocalDateTime.parse(timestamp)
+        }
+
+        println("scheduling event '$type' at $date")
+
+        val asDate = Date.from(date.atZone(ZoneId.systemDefault()).toInstant())
+        config.timer.schedule(asDate) {
+            handleEvent(config)
+        }
     }
 
-    override fun hashCode(): Int {
-        var result = endpoints.contentHashCode()
-        result = 31 * result + delay.hashCode()
-        return result
+    private fun handleEvent(config: ApplicationConfig) {
+        when (type) {
+            "stop_all" -> config.generators.forEach { (_, value) -> value.active = false }
+            "resume_all" -> config.generators.forEach { (_, value) -> value.active = true }
+            "modify" -> {
+                try {
+                    if (!data.has("id")) {
+                        println("'$type' event is missing 'id'")
+                        return
+                    }
+
+                    val id = data["id"].asString
+                    val generator = if (config.generators.containsKey((id))) {
+                        config.generators[id]!!
+                    } else {
+                        if (!data.has("kind")) {
+                            println("'$type' event is missing 'kind'")
+                            return
+                        }
+
+                        val baseGenerator = when (val kind = data["kind"].asString) {
+                            "Temperature" -> TemperatureGenerator(config.s3, config.bucketName)
+                            "Power" -> PowerGenerator()
+                            "TaxiFares" -> TaxiFaresGenerator()
+                            "TaxiRides" -> TaxiRidesGenerator()
+                            "HeartRate" -> HeartRateGenerator(config.s3, config.bucketName)
+                            else -> {
+                                println("invalid generator kind '$kind'")
+                                return
+                            }
+                        }
+
+                        ActiveGenerator(id, config, baseGenerator)
+                    }
+
+                    if (data.has("endpoint")) {
+                        generator.endpoint = data["endpoint"].asString
+                    }
+
+                    if (data.has("frequency")) {
+                        generator.frequency = data["frequency"].asLong
+                    }
+
+                    if (data.has("granularity")) {
+                        generator.granularity = data["granularity"].asLong
+                    }
+
+                    if (data.has("date")) {
+                        generator.currentDate = LocalDateTime.ofInstant(
+                            Instant.ofEpochMilli(data["date"].asLong),
+                            TimeZone.getDefault().toZoneId())
+                    }
+
+                    if (data.has("active")) {
+                        generator.active = data["active"].asBoolean
+                    }
+                } catch (e: Exception) {
+                    println(e.message)
+                    return
+                }
+            }
+            else -> println("unknown event type: '$type'")
+        }
+    }
+}
+
+class ApplicationConfig {
+    /** The time when the server was started. */
+    var startDate = LocalDateTime.now()
+
+    /** The current event queue. */
+    val events = mutableListOf<GeneratorEvent>()
+
+    /** The active generators. */
+    val generators = HashMap<String, ActiveGenerator>()
+
+    /** The timer used for scheduling events. */
+    val timer: Timer = Timer("generators")
+
+    /** Client for making HTTP requests. */
+    val client: HttpClient = HttpClient(Apache) {
+        install(JsonFeature) {
+            serializer = GsonSerializer()
+        }
+    }
+
+    /** The S3 client for downloading generator data. */
+    val s3: AmazonS3
+
+    /** The S3 bucket name. */
+    val bucketName: String
+
+    init {
+        val config = ConfigurationProperties.fromResource("credentials")
+        val awsCreds = BasicAWSCredentials(
+            config[Key("aws_access_key_id", stringType)],
+            config[Key("aws_secret_access_key", stringType)])
+
+        s3 = AmazonS3ClientBuilder.standard()
+            .withCredentials(AWSStaticCredentialsProvider(awsCreds))
+            .withRegion("eu-north-1")
+            .build()
+
+        bucketName = config[Key("bucket_name", stringType)]
+        if (s3.doesBucketExistV2(bucketName)) {
+            println("found existing bucket...")
+        } else {
+            try {
+                println("creating bucket...")
+                s3.createBucket(bucketName)
+            } catch (e: AmazonS3Exception) {
+                println(e.errorMessage)
+                exitProcess(1)
+            }
+        }
+
+        // For debugging only
+        uploadGeneratorData(s3, bucketName)
     }
 }
 
@@ -71,16 +253,6 @@ fun isRunningInDockerContainer(): Boolean {
         stream.anyMatch { line -> line.contains("/docker") }
     } catch (e: Exception) {
         false
-    }
-}
-
-suspend fun handleDatapoint(config: ApplicationConfig, data: IGeneratorValue, client: HttpClient) {
-    for (endpoint in config.endpoints) {
-        client.post<String> {
-            url(endpoint)
-            contentType(ContentType.Application.Json)
-            body = data
-        }
     }
 }
 
@@ -106,58 +278,8 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
-    val appConfig = ApplicationConfig(arrayOf(
-        if (!isRunningInDockerContainer()) "http://localhost:3000/"
-        else "http://docker.for.mac.host.internal:3000/"))
-
-    val config = ConfigurationProperties.fromResource("credentials")
-    val awsCreds = BasicAWSCredentials(
-        config[Key("aws_access_key_id", stringType)],
-        config[Key("aws_secret_access_key", stringType)])
-
-    val s3Client = AmazonS3ClientBuilder.standard()
-        .withCredentials(AWSStaticCredentialsProvider(awsCreds))
-        .withRegion("eu-north-1")
-        .build()
-
-    val bucketName = config[Key("bucket_name", stringType)]
-    if (s3Client.doesBucketExistV2(bucketName)) {
-        println("found existing bucket...")
-    } else {
-        try {
-            println("creating bucket...")
-            s3Client.createBucket(bucketName)
-        } catch (e: AmazonS3Exception) {
-            println(e.errorMessage)
-            exitProcess(1)
-        }
-    }
-
-    // For debugging only
-    uploadGeneratorData(s3Client, bucketName)
-
-    val client = HttpClient(Apache) {
-        install(JsonFeature) {
-            serializer = GsonSerializer()
-        }
-    }
-
-    val mutex = Mutex()
-    var date = LocalDateTime.parse("2000-01-01T00:00:00")
-    val generators = mutableListOf<BaseGenerator>()
-
-    GlobalScope.launch {
-        while (true) {
-            mutex.withLock {
-                for (gen in generators) {
-                    handleDatapoint(appConfig, gen.generateValue(date), client)
-                }
-            }
-
-            delay(appConfig.delay)
-            date = date.plusHours(1)
-        }
-    }
+    val appConfig = ApplicationConfig()
+    val date = LocalDateTime.now()
 
     routing {
         val apiResource = this::class.java.classLoader.getResource("api/index.html").readText()
@@ -174,41 +296,16 @@ fun Application.module(testing: Boolean = false) {
         // Config
         route("/config") {
             post {
-                val newConfig = call.receive<ApplicationConfig>()
-                appConfig.copy(newConfig)
-            }
+                appConfig.startDate = LocalDateTime.now()
 
-            post("/spawn") {
-                val newGenerators = call.receive<Array<GeneratorConfig>>()
-                for (gen in newGenerators) {
-                    for (i in 0..gen.amount) {
-                        val newGen: BaseGenerator? = when (gen.type) {
-                            "Temperature" -> TemperatureGenerator(s3Client, bucketName)
-                            "Power" -> PowerGenerator()
-                            "TaxiFares" -> TaxiFaresGenerator()
-                            "TaxiRides" -> TaxiRidesGenerator()
-                            "HeartRate" -> HeartRateGenerator(s3Client, bucketName)
-                            else -> null
-                        }
-
-                        if (newGen != null) {
-                            mutex.withLock {
-                                generators.add(newGen)
-                            }
-                        }
-                    }
-                }
-            }
-
-            post("/clear") {
-                mutex.withLock {
-                    generators.clear()
-                }
+                val events = call.receive<Array<GeneratorEvent>>()
+                events.forEach { e -> e.schedule(appConfig) }
+                appConfig.events.addAll(events)
             }
         }
 
         // Temperature generator
-        val temperatureGenerator = TemperatureGenerator(s3Client, bucketName)
+        val temperatureGenerator = TemperatureGenerator(appConfig.s3, appConfig.bucketName)
         route("/temperature") {
             get("/random") {
                 call.respond(temperatureGenerator.getRandomValue(date))
@@ -277,7 +374,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Heart Rate Generator
-        val heartRateGenerator = HeartRateGenerator(s3Client, bucketName)
+        val heartRateGenerator = HeartRateGenerator(appConfig.s3, appConfig.bucketName)
         route("/heartRate"){
             get("/random"){
                 call.respond(heartRateGenerator.getRandomValue(date))
@@ -292,7 +389,6 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
         }
-
     }
 }
 
