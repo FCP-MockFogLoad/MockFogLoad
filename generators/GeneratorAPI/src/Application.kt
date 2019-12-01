@@ -146,7 +146,7 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
 
                         val baseGenerator = when (val kind = data["kind"].asString) {
                             "Temperature" -> TemperatureGenerator(config.s3, config.bucketName)
-                            "Power" -> PowerGenerator()
+                            "Power" -> PowerGenerator(config.s3, config.bucketName)
                             "TaxiFares" -> TaxiFaresGenerator()
                             "TaxiRides" -> TaxiRidesGenerator()
                             "HeartRate" -> HeartRateGenerator(config.s3, config.bucketName)
@@ -323,7 +323,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Power Generator
-        val powerGenerator = PowerGenerator()
+        val powerGenerator = PowerGenerator(appConfig.s3, appConfig.bucketName)
         route("/power"){
             get("/random"){
                 call.respond(powerGenerator.getRandomValue(date))

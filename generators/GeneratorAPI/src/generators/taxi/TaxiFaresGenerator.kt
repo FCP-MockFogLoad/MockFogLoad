@@ -1,10 +1,9 @@
 package com.fcp.generators.taxi
 
+import com.amazonaws.services.s3.AmazonS3
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
-import java.io.File
 import java.time.LocalDateTime
-import kotlin.collections.listOf
 
 data class TaxiFares(val rideId: Long,
                      val taxiId : Long,
@@ -23,34 +22,43 @@ data class TaxiFares(val rideId: Long,
         get() = totalFare
 }
 
-class TaxiFaresGenerator: Generator<TaxiFares>("TaxiFares"){
-
-    var taxiFares = listOf<TaxiFares>()
-
+class TaxiFaresGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiFares>("TaxiFares"){
     init {
-        val file = File("resources/taxiData/nycTaxiFares_50M")
-        taxiFares = readFileAndStoreInList(file)
+        if (taxiFares == null) {
+            initializeTaxiFareData(s3, bucketName)
+        }
     }
 
-    private fun readFileAndStoreInList(file: File) : List<TaxiFares>
-       = file.useLines { it.map { line :String -> mapToTaxiFares(line)}.toList() }
+    companion object {
+        private var taxiFares: List<TaxiFares>? = null
 
-    private fun mapToTaxiFares(line : String) : TaxiFares{
-        var result: List<String> = line.split(",").map { it.trim() }
-        return TaxiFares(
-            result.get(0).toLong(),
-            result.get(1).toLong(),
-            result.get(2).toLong(),
-            result.get(3),
-            result.get(4),
-            result.get(5).toFloat(),
-            result.get(6).toFloat(),
-            result.get(7).toFloat(),
-            LocalDateTime.now())
+        private fun initializeTaxiFareData(s3: AmazonS3, bucketName: String) {
+            val resource = loadResource(s3, bucketName, "taxiFares")
+            taxiFares = resource.split("\n").map { line -> this.mapToTaxiFares(line) }.toList()
+        }
+        private fun mapToTaxiFares(line: String): TaxiFares {
+            var result: List<String> = line.split(",").map { it.trim() }
+            return TaxiFares(
+                result.get(0).toLong(),
+                result.get(1).toLong(),
+                result.get(2).toLong(),
+                result.get(3),
+                result.get(4),
+                result.get(5).toFloat(),
+                result.get(6).toFloat(),
+                result.get(7).toFloat(),
+                LocalDateTime.now()
+            )
+        }
+        @Suppress("unused")
+        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
+            return uploadResource(s3, bucketName,
+                "taxiData/nycTaxiFares_50M", "taxiFares")
+        }
     }
 
     override fun getRandomValue(date: LocalDateTime): TaxiFares {
-        return taxiFares.random()
+        return taxiFares!!.random()
     }
 
     override fun generateRandomValues(date: LocalDateTime, amount: Int): List<TaxiFares> {
