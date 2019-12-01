@@ -147,8 +147,8 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                         val baseGenerator = when (val kind = data["kind"].asString) {
                             "Temperature" -> TemperatureGenerator(config.s3, config.bucketName)
                             "Power" -> PowerGenerator(config.s3, config.bucketName)
-                            "TaxiFares" -> TaxiFaresGenerator()
-                            "TaxiRides" -> TaxiRidesGenerator()
+                            "TaxiFares" -> TaxiFaresGenerator(config.s3, config.bucketName)
+                            "TaxiRides" -> TaxiRidesGenerator(config.s3, config.bucketName)
                             "HeartRate" -> HeartRateGenerator(config.s3, config.bucketName)
                             else -> {
                                 println("invalid generator kind '$kind'")
@@ -340,7 +340,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Taxi Fares Generator
-        val taxiFaresGenerator = TaxiFaresGenerator()
+        val taxiFaresGenerator = TaxiFaresGenerator(appConfig.s3, appConfig.bucketName)
         route("/taxiFares"){
             get("/random"){
                 call.respond(taxiFaresGenerator.getRandomValue(date))
@@ -357,7 +357,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Taxi Rides Generator
-        val taxiRidesGenerator = TaxiRidesGenerator()
+        val taxiRidesGenerator = TaxiRidesGenerator(appConfig.s3, appConfig.bucketName)
         route("/taxiRides"){
             get("/random"){
                 call.respond(taxiRidesGenerator.getRandomValue(date))
