@@ -1,9 +1,8 @@
-openapi: 3.0.0
+openapi: 3.0.1
 info:
   description: Fog-Computing-Project Generator API
   version: "1.0.0"
   title: Fog-Computing-Project Generator API
-
 servers:
   - url: http://0.0.0.0:8080
 paths:
@@ -18,8 +17,13 @@ paths:
     post:
       summary: Used to configure the event timeline.
       description: This route is used to configure the timeline of events that the server should initiate.
+      responses:
+        '200':
+          description: The event timeline was successfully processed.
       requestBody:
+        name: events
         required: true
+        description: The event timeline.
         content:
           application/json:
             schema:
@@ -41,13 +45,23 @@ paths:
                     type: object
                     required: false
                     description: The additional properties dependent on the event type.
-                    example:
+                example:
+                  - type: "modify"
+                    timestamp: "+5000"
+                    data:
                       id: temp_1
                       kind: "Temperature"
                       frequency: 1000
                       granularity: 60000
                       endpoint: "http://localhost:3000/"
                       active: true
+                  - type: "modify"
+                    timestamp: "+10000"
+                    data:
+                      id: temp_1
+                      active: false
+                  - type: "stop_all"
+                    timestamp: "+15000"
   /temperature/random:
     get:
       summary: Returns a Temperature Object.

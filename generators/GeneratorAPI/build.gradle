@@ -62,7 +62,7 @@ swaggerSources {
     generator {
         inputFile = file("swaggerDocs.yaml")
         code {
-            language = 'html'
+            language = 'html2'
             outputDir = file("resources/api/")
         }
     }
