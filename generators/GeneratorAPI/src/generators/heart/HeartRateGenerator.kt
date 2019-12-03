@@ -38,10 +38,13 @@ class HeartRateGenerator(s3: AmazonS3, bucketName: String): Generator<HeartRate>
 
         private fun initializeHeartRateData(s3: AmazonS3, bucketName: String) {
             val resource = loadResource(s3, bucketName, "heartrate")
-            heartRate = resource.split("\n").map { line -> this.mapToHeartRate(line) }.toList()
+            heartRate = resource.split("\n")
+                .map { line -> try { this.mapToHeartRate(line) } catch (e: Exception) {
+                    HeartRate(0f, "", 0f, 0f, 0f, 0f,
+                        0f, 0f, 0f, 0f, LocalDateTime.now()) } }.toList()
         }
 
-        private fun mapToHeartRate(line : String) : HeartRate{
+        private fun mapToHeartRate(line : String) : HeartRate {
             val result: List<String> = line.split(" ").map { it.trim() }
             val gender = if (result.get(1).toFloat() == 0.0f){
                 "Male"

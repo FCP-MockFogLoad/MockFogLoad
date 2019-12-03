@@ -2,6 +2,7 @@ package com.fcp.generators
 
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.services.s3.AmazonS3
+import kotlinx.io.charsets.Charset
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.math.abs
@@ -59,6 +60,7 @@ abstract class BaseGenerator(val type: String)  {
             val sb = StringBuffer()
             while (sc.hasNext()) {
                 sb.append(sc.nextLine())
+                sb.append("\n")
             }
 
             return sb.toString()

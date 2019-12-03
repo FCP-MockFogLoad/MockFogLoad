@@ -7,15 +7,17 @@ info:
 servers:
   - url: http://0.0.0.0:8080
 paths:
-  /config/clear:
+  /healthcheck:
+    get:
+      summary: Returns 200 if the generator is functioning normally.
+      description: A simple heartbeat route used to check whether or not the generator is responding normally.
+      responses:
+        '200':
+          description: The generator is functioning normally.
+  /config:
     post:
-        summary: "Deletes all active generators"
-        responses:
-          '200':
-            description: Deleted
-  /config/spawn:
-    post:
-      summary: "Spawns new generators"
+      summary: Used to configure the event timeline.
+      description: This route is used to configure the timeline of events that the server should initiate.
       requestBody:
         required: true
         content:
@@ -27,14 +29,25 @@ paths:
                 properties:
                   type:
                     type: string
-                  amount:
-                    type: number
-                example:
-                  type: "Temperature"
-                  amount: 5
-      responses:
-        '200':
-          description: Created
+                    required: true
+                    description: The event type (modify | stop_all | resume_all)
+                    example: "modify"
+                  timestamp:
+                    type: string
+                    required: true
+                    description: The timestamp of the event, either absolute as a unix timestamp or a formatted date, or relative to the start of the server.
+                    example: "+5000"
+                  data:
+                    type: object
+                    required: false
+                    description: The additional properties dependent on the event type.
+                    example:
+                      id: temp_1
+                      kind: "Temperature"
+                      frequency: 1000
+                      granularity: 60000
+                      endpoint: "http://localhost:3000/"
+                      active: true
   /temperature/random:
     get:
       summary: Returns a Temperature Object.

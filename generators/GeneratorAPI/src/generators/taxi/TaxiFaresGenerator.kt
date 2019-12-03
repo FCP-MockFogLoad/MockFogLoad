@@ -34,8 +34,10 @@ class TaxiFaresGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiFares>
 
         private fun initializeTaxiFareData(s3: AmazonS3, bucketName: String) {
             val resource = loadResource(s3, bucketName, "taxiFares")
-            taxiFares = resource.split("\n").map { line -> this.mapToTaxiFares(line) }.toList()
+            taxiFares = resource.split("\n").map { line -> try { this.mapToTaxiFares(line) }
+            catch (e: Exception) { TaxiFares(0, 0, 0, "", "", 0f, 0f, 0f, LocalDateTime.now()) } }.toList()
         }
+
         private fun mapToTaxiFares(line: String): TaxiFares {
             var result: List<String> = line.split(",").map { it.trim() }
             return TaxiFares(

@@ -266,6 +266,18 @@ fun uploadGeneratorData(s3Client: AmazonS3, bucketName: String) {
         println("error uploading heart rate data, exiting")
         exitProcess(1)
     }
+    if (PowerGenerator.uploadResources(s3Client, bucketName)) {
+        println("error uploading power data, exiting")
+        exitProcess(1)
+    }
+    if (TaxiFaresGenerator.uploadResources(s3Client, bucketName)) {
+        println("error uploading taxi fare data, exiting")
+        exitProcess(1)
+    }
+    if (TaxiRidesGenerator.uploadResources(s3Client, bucketName)) {
+        println("error uploading taxi ride data, exiting")
+        exitProcess(1)
+    }
 }
 
 @Suppress("unused") // Referenced in application.conf
