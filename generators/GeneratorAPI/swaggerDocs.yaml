@@ -21,7 +21,6 @@ paths:
         '200':
           description: The event timeline was successfully processed.
       requestBody:
-        name: events
         required: true
         description: The event timeline.
         content:
@@ -33,18 +32,18 @@ paths:
                 properties:
                   type:
                     type: string
-                    required: true
                     description: The event type (modify | stop_all | resume_all)
                     example: "modify"
                   timestamp:
                     type: string
-                    required: true
                     description: The timestamp of the event, either absolute as a unix timestamp or a formatted date, or relative to the start of the server.
                     example: "+5000"
                   data:
                     type: object
-                    required: false
                     description: The additional properties dependent on the event type.
+                required:
+                  - type
+                  - timestamp
                 example:
                   - type: "modify"
                     timestamp: "+5000"
@@ -62,10 +61,163 @@ paths:
                       active: false
                   - type: "stop_all"
                     timestamp: "+15000"
+  /heartRate/random:
+    get:
+      summary: Returns a HeartRate Object.
+      description: A HeartRate generated Object that contains info related to heart ration, bloodpressure, etc.
+      responses:
+        '200':
+          description: A HeartRate Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  age:
+                    type: number
+                    example: 49.0
+                  sex:
+                    type: string
+                    example: "Male"
+                  chestPainLevel:
+                    type: number
+                    example: 4.0
+                  bloodPressure:
+                    type: number
+                    example: 130.0
+                  cholestoral:
+                    type: number
+                    example: 269.0
+                  bloodSugar:
+                    type: number
+                    example: 0.0
+                  electroCardiographic:
+                    type: number
+                    example: 0.0
+                  heartRate:
+                    type: number
+                    example: 163.0
+                  angina:
+                    type: number
+                    example: 0.0
+                  oldPeak:
+                    type: number
+                    example: 0.0
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 10
+                      nano:
+                        type: integer
+                        example: 806000000
+        default:
+          description: Unexpecter error
+
+  /heartRate/random/{amount}:
+    get:
+      summary: Returns an amount of HeartRate Objects.
+      description: A HeartRate generated Object that contains info related to heart ration, bloodpressure, etc.
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          description: The amount of HeartRate Objects to return.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: An amount of HeartRate Objects.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  age:
+                    type: number
+                    example: 49.0
+                  sex:
+                    type: string
+                    example: "Male"
+                  chestPainLevel:
+                    type: number
+                    example: 4.0
+                  bloodPressure:
+                    type: number
+                    example: 130.0
+                  cholestoral:
+                    type: number
+                    example: 269.0
+                  bloodSugar:
+                    type: number
+                    example: 0.0
+                  electroCardiographic:
+                    type: number
+                    example: 0.0
+                  heartRate:
+                    type: number
+                    example: 163.0
+                  angina:
+                    type: number
+                    example: 0.0
+                  oldPeak:
+                    type: number
+                    example: 0.0
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 10
+                      nano:
+                        type: integer
+                        example: 806000000
+        '400':
+          description: The specified amount is null.
+        default:
+          description: If amount input not integer then it will respond with only one HeartRate Object
   /temperature/random:
     get:
       summary: Returns a Temperature Object.
-      description: A Temperature generated Object is a randomly picked temperature, humidity and pressure for a specific region for a specific time.
+      description: A Temperature generated Object is temperature value for a specific region for a specific time.
       responses:
         '200':
           description: A Temperature Object.
@@ -74,22 +226,43 @@ paths:
               schema:
                 type: object
                 properties:
-                  hour:
-                    type: integer
-                  celsius:
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 10
+                      nano:
+                        type: integer
+                        example: 806000000
+                  temperature:
                     type: number
                     example: 20°C
-                  humidity:
-                    type: number
-                  pressure:
-                    type: number
         default:
           description: Unexpecter error
 
   /temperature/random/{amount}:
     get:
       summary: Returns an amount of Temperature Objects.
-      description: A Temperature generated Object contains temperature, humidity and pressure for a specific region for a specific time.
+      description: A Temperature generated Object is temperature value for a specific region for a specific time.
       parameters:
         - name: amount
           in: path
@@ -106,15 +279,36 @@ paths:
               schema:
                 type: object
                 properties:
-                  hour:
-                    type: integer
-                  celsius:
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 10
+                      nano:
+                        type: integer
+                        example: 806000000
+                  temperature:
                     type: number
                     example: 20°C
-                  humidity:
-                    type: number
-                  pressure:
-                    type: number
         '400':
           description: The specified amount is null.
         default:
@@ -123,7 +317,7 @@ paths:
   /power/random:
     get:
       summary: Returns a random Power Object
-      description: A Power Object contains KiloWatts, Voltage, Current, Kilometres per hour.
+      description: A Power Object contains power related info such as ampere voltage, power, Kwh in a household.
       responses:
         '200':
           description: A Power Object.
@@ -132,20 +326,54 @@ paths:
               schema:
                 type: object
                 properties:
-                  kW:
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 0
+                      nano:
+                        type: integer
+                        example: 0
+                  activePower:
                     type: number
+                    example: 1.378
+                  reActivePower:
+                    type: number
+                    example: 0.104
                   voltage:
                     type: number
-                  amp:
-                    type: integer
-                  kmh:
-                    type: integer
+                    example: 241.41
+                  ampere:
+                    type: number
+                    example: 5.6
+                  Kwh:
+                    type: number
+                    example: 20.0
         default:
           description: Unexpecter error
   /power/random/{amount}:
     get:
       summary: Returns an amount of Power Objects.
-      description: A Power generated Object contains KiloWatts, Voltage, Current, Kilometres per hour.
+      description: A Power Object contains power related info such as ampere voltage, power, Kwh in a household.
       parameters:
         - name: amount
           in: path
@@ -162,14 +390,48 @@ paths:
               schema:
                 type: object
                 properties:
-                  kW:
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 0
+                      nano:
+                        type: integer
+                        example: 0
+                  activePower:
                     type: number
+                    example: 1.378
+                  reActivePower:
+                    type: number
+                    example: 0.104
                   voltage:
                     type: number
-                  amp:
-                    type: integer
-                  kmh:
-                    type: integer
+                    example: 241.41
+                  ampere:
+                    type: number
+                    example: 5.6
+                  Kwh:
+                    type: number
+                    example: 20.0
         '400':
           description: The specified amount is null.
         default:
@@ -188,22 +450,132 @@ paths:
                 properties:
                   rideId:
                     type: number
+                    example: 689733
                   taxiId:
                     type: number
+                    example: 2013007531
                   driverId:
                     type: number
+                    example: 2013015708
                   startTime:
                     type: string
+                    example: "2013-01-02 18:29:00"
                   paymentType:
                     type: string
+                    example: "CRD"
                   tip:
                     type: number
+                    example: 1.75
                   tolls:
                     type: number
+                    example: 0.0
                   totalFare:
                     type: number
+                    example: 18.75
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 0
+                      nano:
+                        type: integer
+                        example: 0
         default:
           description: Unexpecter error
+  /taxiFares/random/{amount}:
+    get:
+      summary: Returns an amount of TaxiFare Objects.
+      description: A TaxiFare Object contains information about individual taxi ride fare data in New York City.
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          description: The amount of TaxiFare Objects to return.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: A TaxiFare Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rideId:
+                    type: number
+                    example: 689733
+                  taxiId:
+                    type: number
+                    example: 2013007531
+                  driverId:
+                    type: number
+                    example: 2013015708
+                  startTime:
+                    type: string
+                    example: "2013-01-02 18:29:00"
+                  paymentType:
+                    type: string
+                    example: "CRD"
+                  tip:
+                    type: number
+                    example: 1.75
+                  tolls:
+                    type: number
+                    example: 0.0
+                  totalFare:
+                    type: number
+                    example: 18.75
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 0
+                      nano:
+                        type: integer
+                        example: 0
+        '400':
+          description: The specified amount is null.
+        default:
+          description: If amount input not integer then it will respond with only one TaxiFare Object
   /taxiRides/random:
     get:
       summary: Returns a random TaxiRide Object
@@ -218,26 +590,147 @@ paths:
                 properties:
                   rideId:
                     type: number
+                    example: 209169
                   isStart:
                     type: string
+                    example: "END"
                   startTime:
                     type: string
+                    example: "2013-01-01 12:43:28"
                   endTime:
                     type: string
+                    example: "2013-01-01 12:35:54"
                   startLongitude:
                     type: number
+                    example: -73.98892
                   startLatitude:
                     type: number
+                    example: 40.742203
                   endLongitude:
                     type: number
+                    example: -73.99157
                   endLatitude:
                     type: number
+                    example: 40.725418
                   passengerCount:
                     type: number
+                    example: 2
                   taxiId:
                     type: number
+                    example: 2013007472
                   driverId:
                     type: number
+                    example: 2013015247
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 0
+                      nano:
+                        type: integer
+                        example: 0
         default:
           description: Unexpecter error
-
+  /taxiRides/random/{amount}:
+    get:
+      summary: Returns an amount of TaxiRides Objects.
+      description: A TaxiRide Object contains information about individual taxi ride data in New York City.
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          description: The amount of TaxiRide Objects to return.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: A TaxiRide Object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rideId:
+                    type: number
+                    example: 209169
+                  isStart:
+                    type: string
+                    example: "END"
+                  startTime:
+                    type: string
+                    example: "2013-01-01 12:43:28"
+                  endTime:
+                    type: string
+                    example: "2013-01-01 12:35:54"
+                  startLongitude:
+                    type: number
+                    example: -73.98892
+                  startLatitude:
+                    type: number
+                    example: 40.742203
+                  endLongitude:
+                    type: number
+                    example: -73.99157
+                  endLatitude:
+                    type: number
+                    example: 40.725418
+                  passengerCount:
+                    type: number
+                    example: 2
+                  taxiId:
+                    type: number
+                    example: 2013007472
+                  driverId:
+                    type: number
+                    example: 2013015247
+                  date:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2019
+                      month:
+                        type: integer
+                        example: 12
+                      day:
+                        type: integer
+                        example: 11
+                  time:
+                    type: object
+                    properties:
+                      hour:
+                        type: integer
+                        example: 18
+                      minute:
+                        type: integer
+                        example: 18
+                      second:
+                        type: integer
+                        example: 0
+                      nano:
+                        type: integer
+                        example: 0
+        '400':
+          description: The specified amount is null.
+        default:
+          description: If amount input not integer then it will respond with only one TaxiRide Object
