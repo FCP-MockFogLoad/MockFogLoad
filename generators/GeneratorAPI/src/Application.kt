@@ -2,8 +2,6 @@ package com.fcp
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.fcp.generators.BaseGenerator
-import com.fcp.generators.GeneratorConfig
-import com.fcp.generators.IGeneratorValue
 import com.fcp.generators.heart.HeartRateGenerator
 import com.fcp.generators.power.PowerGenerator
 import com.fcp.generators.taxi.TaxiFaresGenerator
@@ -23,10 +21,7 @@ import io.ktor.client.features.json.*
 import io.ktor.client.request.url
 import io.ktor.request.receive
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.text.DateFormat
@@ -37,10 +32,8 @@ import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.google.gson.JsonObject
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalUnit
 import java.util.*
 import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
@@ -89,7 +82,7 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
             return
         }
 
-        timerTask = config.timer.schedule(frequency) {
+        timerTask = kotlin.concurrent.timerTask {
             GlobalScope.launch {
                 config.client.post<String> {
                     url(endpoint)
@@ -98,9 +91,10 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
                 }
 
                 currentDate = currentDate.plus(granularity, ChronoUnit.MILLIS)
-                reschedule()
             }
         }
+
+        config.timer.scheduleAtFixedRate(timerTask, 0, frequency)
     }
 }
 
