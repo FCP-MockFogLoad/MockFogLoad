@@ -307,6 +307,8 @@ fun Application.module(testing: Boolean = false) {
                 val events = call.receive<Array<GeneratorEvent>>()
                 events.forEach { e -> e.schedule(appConfig) }
                 appConfig.events.addAll(events)
+
+                call.respond(HttpStatusCode.OK)
             }
         }
 
