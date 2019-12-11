@@ -3,9 +3,15 @@ import json
 import os
 import re
 
-def extract_mean_temperature(raw_temp_data):
+class TempData:
+    region = ""
     mean = 0
-    count = 0
+    datapoints = []
+
+def extract_temperature_data(raw_temp_data):
+    temp_data = TempData()
+    temp_data.mean = 0
+    temp_data.datapoints = []
 
     # extract the relevant lines from the file
     for match in re.finditer("(\\d+), *(\\d+), *(\\d+), *(\\d+), *(\\d+)", raw_temp_data):
@@ -18,15 +24,21 @@ def extract_mean_temperature(raw_temp_data):
         if q_tq != "0":
             continue
 
-        count += 1
-        mean += int(tg) / 10
+        temp_data.mean += int(tg) / 10
+        temp_data.datapoints.append({
+            'date': date,
+            'temp': int(tg) / 10
+        })
 
-    if count == 0:
-        return -1
+    if len(temp_data.datapoints) != 0:
+        temp_data.mean /= len(temp_data.datapoints)
+    else:
+        temp_data.mean = -1
 
-    return mean / count
+    return temp_data
 
 mean_temps = []
+all_temps = []
 data_directory = "./data"
 
 for filename in os.listdir(data_directory):
@@ -38,18 +50,26 @@ for filename in os.listdir(data_directory):
     temp_data_file = open(data_directory + "/" + filename, 'r')
     raw_temp_data = temp_data_file.read()
 
-    mean_temp = extract_mean_temperature(raw_temp_data)
+    temp_data = extract_temperature_data(raw_temp_data)
+    temp_data.region = filename.replace(".txt", "")
+    
+    mean_temp = temp_data.mean
     if mean_temp == -1:
         print("   no valid data points found")
         continue
 
     print("   mean temperature: " + str(mean_temp) + "°C")
 
-    region = filename.replace(".txt", "")
     mean_temps.append({
-        'region': region,
+        'region': temp_data.region,
         'meanTemp': mean_temp
     })
 
+    all_temps.append(temp_data)
+
 with open("../GeneratorAPI/resources/temperature/mean_temp.json", 'w') as result_file:
     json.dump(mean_temps, result_file, indent=4)
+
+for data in all_temps:
+    with open("../GeneratorAPI/resources/temperature/" + data.region + ".json", 'w') as result_file:
+        json.dump(data.__dict__, result_file, indent=4)
