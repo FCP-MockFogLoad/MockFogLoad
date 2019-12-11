@@ -37,6 +37,8 @@ dependencies {
     compile "io.ktor:ktor-client-core:$ktor_version"
     compile "io.ktor:ktor-client-core-jvm:$ktor_version"
     compile "io.ktor:ktor-client-apache:$ktor_version"
+    compile "io.ktor:ktor-client-json:$ktor_version"
+    compile "io.ktor:ktor-client-gson:$ktor_version"
     compile "io.ktor:ktor-gson:$ktor_version"
     compile "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0"
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
