@@ -29,6 +29,7 @@ import java.time.LocalDateTime
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.auth.InstanceProfileCredentialsProvider
 import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.google.gson.JsonObject
 import java.time.Instant
@@ -37,6 +38,9 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
+import com.amazonaws.auth.profile.ProfileCredentialsProvider
+
+
 
 class ActiveGenerator(val id: String, val config: ApplicationConfig, val generator: BaseGenerator) {
     /** Generator frequency in milliseconds. */
@@ -211,17 +215,17 @@ class ApplicationConfig {
     val bucketName: String
 
     init {
-        val config = ConfigurationProperties.fromResource("credentials")
-        val awsCreds = BasicAWSCredentials(
-            config[Key("aws_access_key_id", stringType)],
-            config[Key("aws_secret_access_key", stringType)])
+//        val config = ConfigurationProperties.fromResource("credentials")
+//        val awsCreds = BasicAWSCredentials(
+//            config[Key("aws_access_key_id", stringType)],
+//            config[Key("aws_secret_access_key", stringType)])
 
         s3 = AmazonS3ClientBuilder.standard()
-            .withCredentials(AWSStaticCredentialsProvider(awsCreds))
+//            .withCredentials(AWSStaticCredentialsProvider(awsCreds))
             .withRegion("eu-north-1")
             .build()
 
-        bucketName = config[Key("bucket_name", stringType)]
+        bucketName = "fcp-ws19-generator-data-bucket" // config[Key("bucket_name", stringType)]
         if (s3.doesBucketExistV2(bucketName)) {
             println("found existing bucket...")
         } else {
