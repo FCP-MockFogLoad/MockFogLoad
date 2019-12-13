@@ -1,22 +1,36 @@
 {
-    "testName": "AllDown",
+    "testName": "HeartRate",
     "stages": [
         {
             "id": 1,
             "time": 10,
             "node": [
                 {
-                    "id": "t2.micro_1",
-                    "interfaces": [
-                        {
-                            "id": "all",
-                            "status": "down"
-                        }
-                    ],
+                    "id": "Node1",
                     "generators": [
                         {
-                            "id": "test",
-                            "frequency": 100
+
+                            "id": "HR1",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "127.0.0.1:5540",
+                            "active": true
+                        },
+                        {
+
+                            "id": "HR2",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "127.0.0.1:5541",
+                            "active": true
+                        },
+                        {
+
+                            "id": "HR3",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "127.0.0.1:5542",
+                            "active": true
                         }
                     ]
                 }
@@ -24,14 +38,18 @@
         },
         {
             "id": 2,
-            "time": 10,
+            "time": 20,
             "node": [
                 {
-                    "id": "t2.micro_1",
-                    "interfaces": [
+                    "id": "Node1",
+                    "generators": [
                         {
-                            "id": "all",
-                            "status": "up"
+
+                            "id": "HR1",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "127.0.0.1:5540",
+                            "active": false
                         }
                     ]
                 }

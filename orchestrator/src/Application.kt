@@ -16,14 +16,15 @@ import kotlinx.serialization.json.JsonConfiguration
 import java.io.File
 import java.util.Timer
 import kotlin.concurrent.schedule
+import kotlin.system.exitProcess
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @Serializable
 data class NodeM(val id: String, val ip: String)
 @Serializable
-data class NodeMap(val name: String, val nodes: List<NodeM>)
+data class NodeMap(val nodes: List<NodeM>)
 @Serializable
-data class Generator(val id: String, val frequency: Int = -1)
+data class Generator(val id: String, val kind: String? =null, val endpoint: String? =null, var active: Boolean? =null, var frequency: Int? = null)
 @Serializable
 data class Interface(val id: String, val status: String)
 @Serializable
@@ -38,6 +39,7 @@ data class InstructionsG(val type: String, val timestamp: String, var data: Gene
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
 
+    val delay = 10
     val client = HttpClient(Apache) {
         install(JsonFeature) {
             serializer = GsonSerializer()
@@ -45,8 +47,8 @@ fun Application.module(testing: Boolean = false) {
     }
     val json = Json(JsonConfiguration.Stable)
     val test = parseTests(json)
-    //val nodeMap = parseNodes()
-    val startTime = System.currentTimeMillis() / 1000L
+    val nodeMap = parseNodes(json)
+    val startTime = (System.currentTimeMillis() / 1000L) + delay
     var totalTime: Long = 0
     print("Running test: " + test.testName + ", starting at " + startTime + "\n")
     for (stage in test.stages){
@@ -59,12 +61,13 @@ fun Application.module(testing: Boolean = false) {
             if (node.id == "all"){
 
             } else {
+                val host = getIPofNode(nodeMap, node.id)
                 for (generator in node.generators) {
                     val newInstructions =
                         InstructionsG(type = "modify", timestamp = (startTime + stage.time).toString(), data = generator)
                     val generatorInstruction = packGenerator(newInstructions, json)
                     print(generatorInstruction + "\n")
-                    sendInstructions(arrayOf(newInstructions), client)
+                    sendInstructions(arrayOf(newInstructions), client, host)
                 }
             }
         }
@@ -89,13 +92,22 @@ fun packGenerator(instructions: InstructionsG, json: Json): String{
     return(genJson)
 }
 
-fun sendInstructions(instructions: Array<InstructionsG>, client: HttpClient){
+fun sendInstructions(instructions: Array<InstructionsG>, client: HttpClient, host: String){
     GlobalScope.launch (){
-        //client.get
         client.post<String>{
-            url("http://localhost:8080"+"/config")
+            url("http://$host/config")
             contentType(ContentType.Application.Json)
             body = instructions
         }
     }
+}
+
+fun getIPofNode(map: NodeMap, id: String): String{
+    for (node in map.nodes) {
+        if (node.id == id) {
+            return(node.ip)
+        }
+    }
+    print("Node does not exist in map")
+    exitProcess(0)
 }
