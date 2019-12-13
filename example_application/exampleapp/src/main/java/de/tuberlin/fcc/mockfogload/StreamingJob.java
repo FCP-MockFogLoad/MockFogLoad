@@ -16,53 +16,106 @@
  * limitations under the License.
  */
 
-package de.tuberlin.fcc.mockfogload
+package de.tuberlin.fcc.mockfogload;
 
-import org.apache.flink.api.common.serialization.SimpleStringSchema
-import org.apache.flink.api.java.utils.ParameterTool
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.constructor.Constructor
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
-import org.slf4j.LoggerFactory
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
+import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.constructor.Constructor;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.slf4j.LoggerFactory;
 
-import java.io.File
-import java.io.FileInputStream
-import java.io.InputStream
-import java.util.Arrays
-import java.util.Properties
-import spark.Spark.post
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.*;
 
-class StreamingJob {
+import static spark.Spark.post;
 
-    class MeasurementType {
-        var name: String
-        var lowerThreshold: Double = 0.toDouble()
-        var upperThreshold: Double = 0.toDouble()
-    }
+public class StreamingJob {
+	public StreamingJob() {
+	}
 
-    class Config {
-        var email: String
-        var measurementTypes: List<MeasurementType>
-    }
+	public static class MeasurementType{
+		String name;
+		double lowerThreshold;
+		double upperThreshold;
 
-    companion object {
+		public String getName() {
+			return name;
+		}
 
-        @Throws(Exception::class)
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val yaml = Yaml(Constructor(Config::class.java!!))
-            val inputStream = FileInputStream(File("config.yaml"))
-            val config = yaml.load(inputStream) as Config
+		public void setName(String name) {
+			this.name = name;
+		}
 
-            post("/") { request, response ->
-                println("Hello World!")
-                null
-            }
+		public double getLowerThreshold() {
+			return lowerThreshold;
+		}
 
-            /*
+		public void setLowerThreshold(double lowerThreshold) {
+			this.lowerThreshold = lowerThreshold;
+		}
+
+		public double getUpperThreshold() {
+			return upperThreshold;
+		}
+
+		public void setUpperThreshold(double upperThreshold) {
+			this.upperThreshold = upperThreshold;
+		}
+	}
+
+	public static class Config{
+		String email;
+		List<MeasurementType> measurementTypes;
+
+		public String getEmail() {
+			return email;
+		}
+
+		public void setEmail(String email) {
+			this.email = email;
+		}
+
+		public List<MeasurementType> getMeasurementTypes() {
+			return measurementTypes;
+		}
+
+		public void setMeasurementTypes(List<MeasurementType> measurementTypes) {
+			this.measurementTypes = measurementTypes;
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		Yaml yaml = new Yaml(new Constructor(Config.class));
+		InputStream inputStream = new FileInputStream(new File("config.yaml"));
+		Config config = (Config) yaml.load(inputStream);
+		Map<String, MeasurementType> measurementTypeMap = new HashMap<>();
+		for (MeasurementType m:config.measurementTypes){
+			measurementTypeMap.put(m.name, m);
+		}
+		post("/", (request, response) -> {
+			try {
+				JsonObject jsonObject = new JsonParser().parse(request.body()).getAsJsonObject();
+				System.out.println("JsonObject: "+jsonObject);
+				double heartRate = jsonObject.get("heartRate").getAsDouble();
+				System.out.println("extracted heart rate: "+heartRate);
+			}catch (Exception e){
+				response.status(400);
+				return e;
+			}
+
+			response.status(200);
+			return "OK";
+		});
+
+		/*
 		// set up the streaming execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		LoggerFactory.getILoggerFactory();
@@ -70,11 +123,11 @@ class StreamingJob {
 		Properties properties = new Properties();
 		properties.setProperty("bootstrap.servers", "localhost:9092");
 		properties.setProperty("group.id", "test");
-		DataStream<String> stream = env
+		DataStream<String> stream = env"
 				.addSource(new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties));
 		*/
 
-            /*
+		/*
 		DataStream<String> stream = env
 			.socketTextStream("localhost", 9999, ",");
 
@@ -85,6 +138,5 @@ class StreamingJob {
 		// execute program
 		env.execute("Example Application");
 		*/
-        }
-    }
+	}
 }
