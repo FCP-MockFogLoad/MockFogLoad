@@ -8,7 +8,7 @@ RUN chown -R $APPLICATION_USER /app
 
 USER $APPLICATION_USER
 
-COPY ./build/libs/server-0.0.1.jar /app/server-0.0.1.jar
+COPY ./build/libs/generators*.jar /app/generators.jar
 WORKDIR /app
 
-CMD ["java", "-server", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XX:InitialRAMFraction=2", "-XX:MinRAMFraction=2", "-XX:MaxRAMFraction=2", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=100", "-XX:+UseStringDeduplication", "-jar", "server-0.0.1.jar"]
+CMD ["java", "-server", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XX:InitialRAMFraction=2", "-XX:MinRAMFraction=2", "-XX:MaxRAMFraction=2", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=100", "-XX:+UseStringDeduplication", "-jar", "generators.jar"]
