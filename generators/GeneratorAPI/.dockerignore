@@ -1,4 +1,5 @@
 resources/temperature
-resources/heartRate
+# resources/heartRate
 resources/power
 resources/taxiData
+resources/credentials

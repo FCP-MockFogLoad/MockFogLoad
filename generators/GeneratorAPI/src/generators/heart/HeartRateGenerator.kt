@@ -37,7 +37,9 @@ class HeartRateGenerator(s3: AmazonS3, bucketName: String): Generator<HeartRate>
         private var heartRate: List<HeartRate>? = null
 
         private fun initializeHeartRateData(s3: AmazonS3, bucketName: String) {
-            val resource = loadResource(s3, bucketName, "heartrate")
+//            val resource = loadResource(s3, bucketName, "heartrate")
+            val resource = this::class.java.classLoader.getResource("heartRate/heart.dat").readText()
+
             heartRate = resource.split("\n")
                 .map { line -> try { this.mapToHeartRate(line) } catch (e: Exception) {
                     HeartRate(0f, "", 0f, 0f, 0f, 0f,

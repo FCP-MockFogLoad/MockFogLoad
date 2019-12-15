@@ -215,31 +215,34 @@ class ApplicationConfig {
     val bucketName: String
 
     init {
+        s3 = AmazonS3ClientBuilder.defaultClient()
+        bucketName = ""
+
 //        val config = ConfigurationProperties.fromResource("credentials")
 //        val awsCreds = BasicAWSCredentials(
 //            config[Key("aws_access_key_id", stringType)],
 //            config[Key("aws_secret_access_key", stringType)])
-
-        s3 = AmazonS3ClientBuilder.standard()
+//
+//        s3 = AmazonS3ClientBuilder.standard()
 //            .withCredentials(AWSStaticCredentialsProvider(awsCreds))
-            .withRegion("eu-north-1")
-            .build()
-
-        bucketName = "fcp-ws19-generator-data-bucket" // config[Key("bucket_name", stringType)]
-        if (s3.doesBucketExistV2(bucketName)) {
-            println("found existing bucket...")
-        } else {
-            try {
-                println("creating bucket...")
-                s3.createBucket(bucketName)
-            } catch (e: AmazonS3Exception) {
-                println(e.errorMessage)
-                exitProcess(1)
-            }
-        }
-
-        // For debugging only
-        uploadGeneratorData(s3, bucketName)
+//            .withRegion("eu-north-1")
+//            .build()
+//
+//        bucketName = config[Key("bucket_name", stringType)]
+//        if (s3.doesBucketExistV2(bucketName)) {
+//            println("found existing bucket...")
+//        } else {
+//            try {
+//                println("creating bucket...")
+//                s3.createBucket(bucketName)
+//            } catch (e: AmazonS3Exception) {
+//                println(e.errorMessage)
+//                exitProcess(1)
+//            }
+//        }
+//
+//        // For debugging only
+//        uploadGeneratorData(s3, bucketName)
     }
 }
 
@@ -317,7 +320,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Temperature generator
-        val temperatureGenerator = TemperatureGenerator(appConfig.s3, appConfig.bucketName)
+        /* val temperatureGenerator = TemperatureGenerator(appConfig.s3, appConfig.bucketName)
         route("/temperature") {
             get("/random") {
                 call.respond(temperatureGenerator.getRandomValue(date))
@@ -384,6 +387,7 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
         }
+         */
 
         // Heart Rate Generator
         val heartRateGenerator = HeartRateGenerator(appConfig.s3, appConfig.bucketName)
