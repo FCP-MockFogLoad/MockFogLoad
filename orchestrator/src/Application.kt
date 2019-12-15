@@ -39,7 +39,7 @@ data class InstructionsG(val type: String, val timestamp: String, var data: Gene
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
 
-    val delay = 10
+    val delay = 1
     val client = HttpClient(Apache) {
         install(JsonFeature) {
             serializer = GsonSerializer()
@@ -64,7 +64,7 @@ fun Application.module(testing: Boolean = false) {
                 val host = getIPofNode(nodeMap, node.id)
                 for (generator in node.generators) {
                     val newInstructions =
-                        InstructionsG(type = "modify", timestamp = (startTime + stage.time).toString(), data = generator)
+                        InstructionsG(type = "modify", timestamp = ((startTime + totalTime)*1000L).toString(), data = generator)
                     val generatorInstruction = packGenerator(newInstructions, json)
                     print(generatorInstruction + "\n")
                     sendInstructions(arrayOf(newInstructions), client, host)
