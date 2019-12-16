@@ -122,7 +122,7 @@ public class StreamingJob {
 					}
 
 					if (value > type.upperThreshold){
-						System.out.println("Measurement for "+type.name+" violated upper threshold: "+value +" > "+type.lowerThreshold);
+						System.out.println("Measurement for "+type.name+" violated upper threshold: "+value +" > "+type.upperThreshold);
 					}
 				}
 
