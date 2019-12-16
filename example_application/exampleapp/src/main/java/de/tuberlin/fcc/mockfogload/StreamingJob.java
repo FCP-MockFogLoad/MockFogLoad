@@ -18,6 +18,7 @@
 
 package de.tuberlin.fcc.mockfogload;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
@@ -97,15 +98,34 @@ public class StreamingJob {
 		InputStream inputStream = new FileInputStream(new File("config.yaml"));
 		Config config = (Config) yaml.load(inputStream);
 		Map<String, MeasurementType> measurementTypeMap = new HashMap<>();
+
 		for (MeasurementType m:config.measurementTypes){
 			measurementTypeMap.put(m.name, m);
 		}
+
+		MeasurementType heartRateConfig = measurementTypeMap.get("heartRate");
+
 		post("/", (request, response) -> {
 			try {
 				JsonObject jsonObject = new JsonParser().parse(request.body()).getAsJsonObject();
-				System.out.println("JsonObject: "+jsonObject);
-				double heartRate = jsonObject.get("heartRate").getAsDouble();
-				System.out.println("extracted heart rate: "+heartRate);
+
+				for (MeasurementType type:config.measurementTypes){
+					JsonElement measurement = jsonObject.get(type.name);
+					if (measurement == null){
+						continue;
+					}
+
+					double value = measurement.getAsDouble();
+
+					if (value < type.lowerThreshold){
+						System.out.println("Measurement for "+type.name+" violated lower threshold: "+value +" < "+type.lowerThreshold);
+					}
+
+					if (value > type.upperThreshold){
+						System.out.println("Measurement for "+type.name+" violated upper threshold: "+value +" > "+type.lowerThreshold);
+					}
+				}
+
 			}catch (Exception e){
 				response.status(400);
 				return e;
