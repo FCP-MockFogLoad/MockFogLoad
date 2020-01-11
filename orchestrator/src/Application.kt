@@ -24,7 +24,7 @@ data class NodeM(val id: String, val ip: String)
 @Serializable
 data class NodeMap(val nodes: List<NodeM>)
 @Serializable
-data class Generator(val id: String, val kind: String? =null, val endpoint: String? =null, var active: Boolean? =null, var frequency: Int? = null)
+data class Generator(val id: String, val kind: String? =null, var endpoint: String, var active: Boolean? =null, var frequency: Int? = null)
 @Serializable
 data class Interface(val id: String, val status: String)
 @Serializable
@@ -63,6 +63,8 @@ fun Application.module(testing: Boolean = false) {
             } else {
                 val host = getIPofNode(nodeMap, node.id)
                 for (generator in node.generators) {
+                    val remote = getIPofNode(nodeMap, generator.endpoint)
+                    generator.endpoint = "http://$remote"
                     val newInstructions =
                         InstructionsG(type = "modify", timestamp = ((startTime + totalTime)*1000L).toString(), data = generator)
                     val generatorInstruction = packGenerator(newInstructions, json)
