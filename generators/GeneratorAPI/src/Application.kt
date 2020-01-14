@@ -39,10 +39,27 @@ import java.util.*
 import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
+import com.fcp.generators.IGeneratorValue
+import io.ktor.http.content.TextContent
+import kotlin.reflect.KProperty
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.createType
+import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.typeOf
 
-
+enum class GeneratorDataType {
+    JSON,
+    FormatString,
+}
 
 class ActiveGenerator(val id: String, val config: ApplicationConfig, val generator: BaseGenerator) {
+    /** The generator's output data type. */
+    var dataType: GeneratorDataType = GeneratorDataType.JSON
+
+    /** The generator's format string (if dataType is FormatString). */
+    var formatString: String = ""
+
     /** Generator frequency in milliseconds. */
     var frequency = 100L
 
@@ -81,6 +98,53 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
         config.generators[id] = this
     }
 
+    @UseExperimental(ExperimentalStdlibApi::class)
+    private fun formatData(data: IGeneratorValue): String {
+        val cl = data::class
+        val values = HashMap<String, String>()
+
+        loop@ for (prop in cl.memberProperties) {
+            val name = prop.name
+
+            // prop as KProperty1<out IGeneratorValue, Any>
+            val value = prop.getter.call(data).toString()
+            values.put(name, value)
+        }
+
+        val formatStringAscii = formatString.toCharArray()
+        var i = 0
+        var result = ""
+
+        while (i < formatStringAscii.size) {
+            if (formatStringAscii[i] != '$') {
+                result += formatStringAscii[i++]
+                continue
+            }
+            if (i + 1 == formatStringAscii.size || formatStringAscii[i + 1] != '{') {
+                result += formatStringAscii[i++]
+                continue
+            }
+
+            i += 2
+
+            var ident = ""
+            while (i < formatStringAscii.size && formatStringAscii[i] != '}') {
+                ident += formatStringAscii[i++]
+            }
+
+            if (values.containsKey(ident)) {
+                result += values[ident]
+            } else {
+                result += "<invalid datapoint: $ident>"
+            }
+
+            ++i
+        }
+
+        println(result)
+        return result
+    }
+
     private fun reschedule() {
         if (!active) {
             return
@@ -88,10 +152,21 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
 
         timerTask = kotlin.concurrent.timerTask {
             GlobalScope.launch {
-                config.client.post<String> {
-                    url(endpoint)
-                    contentType(ContentType.Application.Json)
-                    body = generator.generateValue(currentDate)
+                when (dataType) {
+                    GeneratorDataType.JSON -> {
+                        config.client.post<String> {
+                            url(endpoint)
+                            contentType(ContentType.Application.Json)
+                            body = generator.generateValue(currentDate)
+                        }
+                    }
+                    GeneratorDataType.FormatString -> {
+                        config.client.post<String> {
+                            url(endpoint)
+                            body = TextContent(formatData(generator.generateValue(currentDate)),
+                                contentType = ContentType.Text.Plain)
+                        }
+                    }
                 }
 
                 currentDate = currentDate.plus(granularity, ChronoUnit.MILLIS)
@@ -165,6 +240,10 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                         generator.frequency = data["frequency"].asLong
                     }
 
+                    if (data.has("events_per_second")) {
+                        generator.frequency = 1000 / data["events_per_second"].asLong
+                    }
+
                     if (data.has("granularity")) {
                         generator.granularity = data["granularity"].asLong
                     }
@@ -173,6 +252,13 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                         generator.currentDate = LocalDateTime.ofInstant(
                             Instant.ofEpochMilli(data["date"].asLong),
                             TimeZone.getDefault().toZoneId())
+                    }
+
+                    if (data.has("format_string")) {
+                        generator.dataType = GeneratorDataType.FormatString
+                        generator.formatString = data["format_string"].asString
+                    } else {
+                        generator.dataType = GeneratorDataType.JSON
                     }
 
                     if (data.has("active")) {
@@ -215,7 +301,7 @@ class ApplicationConfig {
     val bucketName: String
 
     init {
-        s3 = AmazonS3ClientBuilder.defaultClient()
+        s3 = AmazonS3ClientBuilder.standard().withRegion("eu-north-1").build()
         bucketName = ""
 
 //        val config = ConfigurationProperties.fromResource("credentials")
