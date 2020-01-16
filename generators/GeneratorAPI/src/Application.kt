@@ -1,64 +1,72 @@
 package com.fcp
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.services.s3.AmazonS3
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.fcp.generators.BaseGenerator
+import com.fcp.generators.IGeneratorValue
 import com.fcp.generators.heart.HeartRateGenerator
 import com.fcp.generators.power.PowerGenerator
 import com.fcp.generators.taxi.TaxiFaresGenerator
 import com.fcp.generators.taxi.TaxiRidesGenerator
 import com.fcp.temperature.TemperatureGenerator
-import com.natpryce.konfig.*
-import io.ktor.application.*
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import io.ktor.application.Application
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.apache.Apache
+import io.ktor.client.features.json.GsonSerializer
+import io.ktor.client.features.json.JsonFeature
+import io.ktor.client.request.post
+import io.ktor.client.request.url
 import io.ktor.features.ContentNegotiation
 import io.ktor.gson.gson
-import io.ktor.response.*
-import io.ktor.routing.*
 import io.ktor.http.*
-import io.ktor.client.*
-import io.ktor.client.engine.apache.*
-import io.ktor.client.request.post
-import io.ktor.client.features.json.*
-import io.ktor.client.request.url
+import io.ktor.http.content.TextContent
 import io.ktor.request.receive
+import io.ktor.response.respond
+import io.ktor.response.respondText
+import io.ktor.routing.get
+import io.ktor.routing.post
+import io.ktor.routing.route
+import io.ktor.routing.routing
+import io.netty.channel.unix.NativeInetAddress.address
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.lang.NumberFormatException
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.text.DateFormat
-import java.time.LocalDateTime
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.auth.BasicAWSCredentials
-import com.amazonaws.auth.InstanceProfileCredentialsProvider
-import com.amazonaws.services.s3.model.AmazonS3Exception
-import com.google.gson.JsonObject
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.concurrent.schedule
-import kotlin.system.exitProcess
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.fcp.generators.IGeneratorValue
-import io.ktor.http.content.TextContent
-import kotlin.reflect.KProperty
-import kotlin.reflect.KProperty1
-import kotlin.reflect.full.createType
-import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.memberProperties
-import kotlin.reflect.typeOf
+import kotlin.system.exitProcess
+
 
 enum class GeneratorDataType {
     JSON,
     FormatString,
 }
 
+enum class GeneratorProtocol {
+    HTTP,
+    UDP,
+}
+
 class ActiveGenerator(val id: String, val config: ApplicationConfig, val generator: BaseGenerator) {
     /** The generator's output data type. */
-    var dataType: GeneratorDataType = GeneratorDataType.JSON
+    var dataType = GeneratorDataType.JSON
 
     /** The generator's format string (if dataType is FormatString). */
-    var formatString: String = ""
+    var formatString = ""
 
     /** Generator frequency in milliseconds. */
     var frequency = 100L
@@ -83,6 +91,15 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
     /** The granularity of the generator, i.e. the time in milliseconds
      * betweeen generated datapoints. */
     var granularity = 100L
+
+    /** The protocol to use when sending data to the endpoint. */
+    var protocol = GeneratorProtocol.HTTP
+
+    /** The IP address of the UDP endpoint. */
+    var udpIPAddress: InetAddress? = null
+
+    /** The port of the UDP endpoint. */
+    var udpPort: Int? = null
 
     /** The endpoint the generator should send to. */
     var endpoint = if (!isRunningInDockerContainer()) "http://localhost:3000/"
@@ -132,17 +149,73 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
                 ident += formatStringAscii[i++]
             }
 
-            if (values.containsKey(ident)) {
-                result += values[ident]
+            result += if (values.containsKey(ident)) {
+                values[ident]
             } else {
-                result += "<invalid datapoint: $ident>"
+                "<invalid datapoint: $ident>"
             }
 
             ++i
         }
 
-        println(result)
         return result
+    }
+
+    private suspend fun sendMessageHTTP(value: IGeneratorValue) {
+        when (dataType) {
+            GeneratorDataType.JSON -> {
+                config.client.post<String> {
+                    url(endpoint)
+                    contentType(ContentType.Application.Json)
+                    body = value
+                }
+            }
+            GeneratorDataType.FormatString -> {
+                config.client.post<String> {
+                    url(endpoint)
+                    body = TextContent(formatData(value),
+                        contentType = ContentType.Text.Plain)
+                }
+            }
+        }
+    }
+
+    private fun sendMessageUDP(value: IGeneratorValue) {
+        if (udpIPAddress == null) {
+            val split = endpoint.split(":")
+            if (split.size != 2) {
+                println("invalid UDP address")
+                return
+            }
+
+            udpIPAddress = InetAddress.getByName(split[0])
+
+            try {
+                udpPort = split[1].toInt()
+            } catch (e: NumberFormatException) {
+                println("invalid UDP port: ${e.message}")
+                return
+            }
+        }
+
+        val msg: String = when (dataType) {
+            GeneratorDataType.JSON -> {
+                config.gson.toJson(value)
+            }
+            GeneratorDataType.FormatString -> {
+                formatData(value)
+            }
+        }
+
+        val buf = msg.toByteArray()
+        val packet = udpPort?.let { DatagramPacket(buf, 0, buf.size, udpIPAddress, it) }
+
+        if (packet == null) {
+            println("error creating UDP packet")
+            return
+        }
+
+        config.udpSocket.send(packet)
     }
 
     private fun reschedule() {
@@ -152,21 +225,11 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
 
         timerTask = kotlin.concurrent.timerTask {
             GlobalScope.launch {
-                when (dataType) {
-                    GeneratorDataType.JSON -> {
-                        config.client.post<String> {
-                            url(endpoint)
-                            contentType(ContentType.Application.Json)
-                            body = generator.generateValue(currentDate)
-                        }
-                    }
-                    GeneratorDataType.FormatString -> {
-                        config.client.post<String> {
-                            url(endpoint)
-                            body = TextContent(formatData(generator.generateValue(currentDate)),
-                                contentType = ContentType.Text.Plain)
-                        }
-                    }
+                val value = generator.generateValue(currentDate)
+                if (protocol == GeneratorProtocol.HTTP) {
+                    sendMessageHTTP(value)
+                } else {
+                    sendMessageUDP(value)
                 }
 
                 currentDate = currentDate.plus(granularity, ChronoUnit.MILLIS)
@@ -261,6 +324,15 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                         generator.dataType = GeneratorDataType.JSON
                     }
 
+                    if (data.has("protocol")) {
+                        val protocol = data["protocol"].asString
+                        generator.protocol = if (protocol == "UDP") {
+                            GeneratorProtocol.UDP
+                        } else {
+                            GeneratorProtocol.HTTP
+                        }
+                    }
+
                     if (data.has("active")) {
                         generator.active = data["active"].asBoolean
                     }
@@ -293,6 +365,12 @@ class ApplicationConfig {
             serializer = GsonSerializer()
         }
     }
+
+    /** The UDP client, if UDP is chosen as a protocol. */
+    val udpSocket = DatagramSocket()
+
+    /** GSON client. */
+    val gson = Gson()
 
     /** The S3 client for downloading generator data. */
     val s3: AmazonS3
