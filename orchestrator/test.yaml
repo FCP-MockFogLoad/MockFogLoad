@@ -1,0 +1,19 @@
+testName: HeartRate
+stages:
+  - id: 1
+    time: 10
+    node:
+    - id: Node1
+      generators:
+      - id: HR1
+        kind: HeartRate
+        frequency: 30
+        endpoint: Node2
+        active: true
+  - id: 2
+    time: 10
+    node:
+    - id: Node1
+      generators:
+      - id: HR1
+        active: false

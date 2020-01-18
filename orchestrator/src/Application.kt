@@ -1,5 +1,9 @@
 package com.example
 
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.ktor.application.Application
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
@@ -11,9 +15,8 @@ import io.ktor.http.contentType
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonConfiguration
-import java.io.File
+import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.util.Timer
 import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
@@ -24,15 +27,15 @@ data class NodeM(val id: String, val ip: String)
 @Serializable
 data class NodeMap(val nodes: List<NodeM>)
 @Serializable
-data class Generator(val id: String, val kind: String? =null, var endpoint: String, var active: Boolean? =null, var frequency: Int? = null)
+data class Generator(val id: String? =null, val kind: String? =null, var endpoint: String? =null, var active: Boolean? =null, var frequency: Int? = null)
 @Serializable
 data class Interface(val id: String, val status: String)
 @Serializable
 data class Node(val id: String, val interfaces: List<Interface> = emptyList(), val generators: List<Generator> = emptyList())
 @Serializable
-data class Stage(val id: Int, val time: Long, val node: List<Node>)
+data class Stage(val id: Int? =null, val time: Long = 0, val node: List<Node> = emptyList())
 @Serializable
-data class Test(val testName: String, val stages: List<Stage>)
+data class Test(val testName: String? =null, val stages: List<Stage> = emptyList())
 @Serializable
 data class InstructionsG(val type: String, val timestamp: String, var data: Generator)
 @Suppress("unused") // Referenced in application.conf
@@ -45,9 +48,8 @@ fun Application.module(testing: Boolean = false) {
             serializer = GsonSerializer()
         }
     }
-    val json = Json(JsonConfiguration.Stable)
-    val test = parseTests(json)
-    val nodeMap = parseNodes(json)
+    val test = parseTests("test.yaml")
+    val nodeMap = parseNodes("map.yaml")
     val startTime = (System.currentTimeMillis() / 1000L) + delay
     var totalTime: Long = 0
     print("Running test: " + test.testName + ", starting at " + startTime + "\n")
@@ -63,11 +65,13 @@ fun Application.module(testing: Boolean = false) {
             } else {
                 val host = getIPofNode(nodeMap, node.id)
                 for (generator in node.generators) {
-                    val remote = getIPofNode(nodeMap, generator.endpoint)
-                    generator.endpoint = "http://$remote"
+                    if (generator.endpoint != null){
+                        val remote = getIPofNode(nodeMap, generator.endpoint)
+                        generator.endpoint = "http://$remote"
+                    }
                     val newInstructions =
                         InstructionsG(type = "modify", timestamp = ((startTime + totalTime)*1000L).toString(), data = generator)
-                    val generatorInstruction = packGenerator(newInstructions, json)
+                    val generatorInstruction = packGenerator(newInstructions)
                     print(generatorInstruction + "\n")
                     sendInstructions(arrayOf(newInstructions), client, host)
                 }
@@ -76,20 +80,26 @@ fun Application.module(testing: Boolean = false) {
     }
 }
 
-fun parseTests(json: Json): Test {
-    val jsonTest = File("test.json").readText(Charsets.UTF_8)
-    val objTest = json.parse(Test.serializer(), jsonTest)
+fun parseTests(path: String): Test {
+    val parser = ObjectMapper(YAMLFactory())
+    parser.registerModule(KotlinModule())
+    val yaml = Files.newBufferedReader(FileSystems.getDefault().getPath(path))
+    val objTest = parser.readValue(yaml, Test::class.java)
     return(objTest)
 }
 
-fun parseNodes(json: Json): NodeMap {
-    val jsonMap = File("map.json").readText(Charsets.UTF_8)
-    val objMap = json.parse(NodeMap.serializer(), jsonMap)
+fun parseNodes(path: String): NodeMap {
+    val parser = ObjectMapper(YAMLFactory())
+    parser.registerModule(KotlinModule())
+    val yaml = Files.newBufferedReader(FileSystems.getDefault().getPath(path))
+    val objMap = parser.readValue(yaml, NodeMap::class.java)
     return(objMap)
 }
 
-fun packGenerator(instructions: InstructionsG, json: Json): String{
-    val genJson = "["+json.stringify(InstructionsG.serializer(), instructions)+"]"
+fun packGenerator(instructions: InstructionsG): String{
+    val mapper = ObjectMapper();
+    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    val genJson = "["+mapper.writeValueAsString(instructions)+"]"
 
     return(genJson)
 }
@@ -104,7 +114,7 @@ fun sendInstructions(instructions: Array<InstructionsG>, client: HttpClient, hos
     }
 }
 
-fun getIPofNode(map: NodeMap, id: String): String{
+fun getIPofNode(map: NodeMap, id: String?): String{
     for (node in map.nodes) {
         if (node.id == id) {
             return(node.ip)
