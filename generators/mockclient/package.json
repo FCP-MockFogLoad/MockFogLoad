@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "coap": "^0.23.1",
     "dgram": "^1.0.1",
     "express": "^4.17.1"
   }

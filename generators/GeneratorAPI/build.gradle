@@ -40,6 +40,7 @@ repositories {
     mavenLocal()
     jcenter()
     maven { url 'https://kotlin.bintray.com/ktor' }
+    maven { url "https://jitpack.io" }
 }
 
 dependencies {
@@ -56,6 +57,7 @@ dependencies {
     implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.228')
     implementation 'com.amazonaws:aws-java-sdk-s3'
     implementation 'com.natpryce:konfig:1.6.10.0'
+    implementation 'com.github.ARMmbed:java-coap:5.0.0'
 }
 
 swaggerSources {

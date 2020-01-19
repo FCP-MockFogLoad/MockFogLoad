@@ -57,3 +57,19 @@ server.on("close", function() {
 });
 
 server.bind(2222);
+
+/** COAP Server */
+
+var coap = require("coap"),
+  coapServer = coap.createServer(),
+  coapPort = 5683;
+
+coapServer.on("request", function(req, res) {
+  console.log(`request at ${req.url}: ${req.payload}`);
+  res.end();
+});
+
+// the default CoAP port is 5683
+coapServer.listen(coapPort, function() {
+  console.log(`COAP server is listening on port ${coapPort}`);
+});

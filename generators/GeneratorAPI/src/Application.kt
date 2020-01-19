@@ -11,6 +11,8 @@ import com.fcp.generators.taxi.TaxiRidesGenerator
 import com.fcp.temperature.TemperatureGenerator
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.mbed.coap.client.CoapClient
+import com.mbed.coap.client.CoapClientBuilder
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
@@ -22,8 +24,10 @@ import io.ktor.client.request.post
 import io.ktor.client.request.url
 import io.ktor.features.ContentNegotiation
 import io.ktor.gson.gson
-import io.ktor.http.*
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
+import io.ktor.http.contentType
 import io.ktor.request.receive
 import io.ktor.response.respond
 import io.ktor.response.respondText
@@ -31,13 +35,12 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
 import io.ktor.routing.routing
-import io.netty.channel.unix.NativeInetAddress.address
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import java.lang.NumberFormatException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.text.DateFormat
@@ -59,6 +62,7 @@ enum class GeneratorDataType {
 enum class GeneratorProtocol {
     HTTP,
     UDP,
+    COAP,
 }
 
 class ActiveGenerator(val id: String, val config: ApplicationConfig, val generator: BaseGenerator) {
@@ -94,6 +98,14 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
 
     /** The protocol to use when sending data to the endpoint. */
     var protocol = GeneratorProtocol.HTTP
+        set(value) {
+            field = value
+            udpIPAddress = null
+            udpPort = null
+
+            config.coapClient?.close()
+            config.coapClient = null
+        }
 
     /** The IP address of the UDP endpoint. */
     var udpIPAddress: InetAddress? = null
@@ -218,6 +230,44 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
         config.udpSocket.send(packet)
     }
 
+    private fun sendMessageCOAP(value: IGeneratorValue) {
+        if (config.coapClient == null) {
+            val split = endpoint.split(":")
+            if (split.size != 2) {
+                println("invalid CoaP address")
+                return
+            }
+
+            val host = InetAddress.getByName(split[0])
+            val port: Int
+
+            try {
+                port = split[1].toInt()
+            } catch (e: NumberFormatException) {
+                println("invalid CoaP port: ${e.message}")
+                return
+            }
+
+            config.coapClient = CoapClientBuilder.newBuilder(InetSocketAddress(host, port)).build()
+        }
+
+        if (config.coapClient == null) {
+            println("failed to create CoaP client for endpoint $endpoint")
+            return
+        }
+
+        val msg: String = when (dataType) {
+            GeneratorDataType.JSON -> {
+                config.gson.toJson(value)
+            }
+            GeneratorDataType.FormatString -> {
+                formatData(value)
+            }
+        }
+
+        config.coapClient?.resource("/datapoint")?.payload(msg)?.put()
+    }
+
     private fun reschedule() {
         if (!active) {
             return
@@ -228,6 +278,8 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
                 val value = generator.generateValue(currentDate)
                 if (protocol == GeneratorProtocol.HTTP) {
                     sendMessageHTTP(value)
+                } else if (protocol == GeneratorProtocol.COAP) {
+                    sendMessageCOAP(value)
                 } else {
                     sendMessageUDP(value)
                 }
@@ -325,10 +377,15 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                     }
 
                     if (data.has("protocol")) {
-                        val protocol = data["protocol"].asString
-                        generator.protocol = if (protocol == "UDP") {
+                        val protocol = data["protocol"].asString.toLowerCase()
+                        generator.protocol = if (protocol == "udp") {
                             GeneratorProtocol.UDP
+                        } else if (protocol == "coap") {
+                            GeneratorProtocol.COAP
+                        } else if (protocol == "http") {
+                            GeneratorProtocol.HTTP
                         } else {
+                            println("invalid protocol $protocol")
                             GeneratorProtocol.HTTP
                         }
                     }
@@ -368,6 +425,9 @@ class ApplicationConfig {
 
     /** The UDP client, if UDP is chosen as a protocol. */
     val udpSocket = DatagramSocket()
+
+    /** The CoaP client, if CoaP is used. */
+    var coapClient: CoapClient? = null
 
     /** GSON client. */
     val gson = Gson()
