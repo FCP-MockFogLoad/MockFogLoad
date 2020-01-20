@@ -20,7 +20,7 @@ data class Power(override val date: LocalDateTime,
         get() = Kwh
 }
 
-class PowerGenerator(s3: AmazonS3, bucketName: String): Generator<Power>("Power") {
+class PowerGenerator(s3: AmazonS3?, bucketName: String): Generator<Power>("Power") {
     init {
         if (powerConsumption == null) {
             initializePowerConsumptionData(s3, bucketName)
@@ -30,8 +30,8 @@ class PowerGenerator(s3: AmazonS3, bucketName: String): Generator<Power>("Power"
     companion object {
         private var powerConsumption: List<Power>? = null
 
-        private fun initializePowerConsumptionData(s3: AmazonS3, bucketName: String) {
-            val resource = loadResource(s3, bucketName, "power_consumption")
+        private fun initializePowerConsumptionData(s3: AmazonS3?, bucketName: String) {
+            val resource = loadResourceHTTP(bucketName, "power_consumption")
             powerConsumption = resource.lines().map { line -> this.mapToPowerConsumption(line) }.toList()
         }
 

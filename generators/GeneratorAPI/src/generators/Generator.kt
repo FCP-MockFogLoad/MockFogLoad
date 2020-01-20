@@ -2,11 +2,15 @@ package com.fcp.generators
 
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.services.s3.AmazonS3
-import kotlinx.io.charsets.Charset
+import com.amazonaws.services.s3.model.CannedAccessControlList
+import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
+import java.net.URL
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.math.abs
 import kotlin.random.Random
+
 
 data class GeneratorConfig(val type: String, val amount: Int) {
 
@@ -44,6 +48,7 @@ abstract class BaseGenerator(val type: String)  {
 
             try {
                 s3.putObject(bucketName, key, resource)
+                s3.setObjectAcl(bucketName, key, CannedAccessControlList.PublicRead);
                 println("done!")
             } catch (e: AmazonServiceException) {
                 println(e.message)
@@ -64,6 +69,23 @@ abstract class BaseGenerator(val type: String)  {
             }
 
             return sb.toString()
+        }
+
+        fun loadResourceHTTP(bucketName: String, key: String): String {
+            var url = URL("https://$bucketName.s3.amazonaws.com/$key")
+            val inputStream = BufferedInputStream(url.openStream())
+            val out = ByteArrayOutputStream()
+            val buf = ByteArray(1024)
+            var n = 0
+
+            while (-1 != inputStream.read(buf).also { n = it }) {
+                out.write(buf, 0, n)
+            }
+
+            out.close()
+            inputStream.close()
+
+            return out.toString()
         }
     }
 }

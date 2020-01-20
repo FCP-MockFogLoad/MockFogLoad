@@ -27,7 +27,7 @@ data class TaxiRides(val rideId: Long,
         get() = startLongitude
 }
 
-class TaxiRidesGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiRides>("TaxiRides"){
+class TaxiRidesGenerator(s3: AmazonS3?, bucketName: String): Generator<TaxiRides>("TaxiRides"){
 
     init {
         if (taxiRides == null) {
@@ -38,8 +38,8 @@ class TaxiRidesGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiRides>
     companion object {
         private var taxiRides: List<TaxiRides>? = null
 
-        private fun initializeTaxiRidesData(s3: AmazonS3, bucketName: String) {
-            val resource = loadResource(s3, bucketName, "taxiRides")
+        private fun initializeTaxiRidesData(s3: AmazonS3?, bucketName: String) {
+            val resource = loadResourceHTTP(bucketName, "taxiRides")
             taxiRides = resource.split("\n")
                 .map { line -> try { this.mapToTaxiRides(line) } catch(e: Exception) {
                     TaxiRides(0, "", "", "",
@@ -66,9 +66,9 @@ class TaxiRidesGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiRides>
         }
 
         @Suppress("unused")
-        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
+        fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
             return uploadResource(s3, bucketName,
-                "taxiData/nycTaxiRides_50M", "taxiRides")
+                "taxiData/nycTaxiRides_50M", "taxiRides", force)
         }
     }
 

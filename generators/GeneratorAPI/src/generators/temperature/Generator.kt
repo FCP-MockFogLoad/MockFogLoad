@@ -16,7 +16,7 @@ data class TemperatureData(val mean: Float,
                            val datapoints: Array<TemperatureDataPoint>,
                            val region: String) {}
 
-class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperature>("Temperature") {
+class TemperatureGenerator(s3: AmazonS3?, bucketName: String): Generator<Temperature>("Temperature") {
     var region: String
     val variation = 5f
     private var meanTemperatures: MutableList<Float>
@@ -38,10 +38,10 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
         val meanTemperatures = HashMap<String, MutableList<Float>>()
 
         @Suppress("unused")
-        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
+        fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
             for (region in regions) {
                 if (uploadResource(s3, bucketName, "temperature/$region.json",
-                              "temperature/$region")) {
+                              "temperature/$region", force)) {
                     return true
                 }
             }
@@ -49,14 +49,14 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
             return false
         }
 
-        fun getMeanTemperatures(s3: AmazonS3, bucketName: String, region: String): MutableList<Float> {
+        fun getMeanTemperatures(s3: AmazonS3?, bucketName: String, region: String): MutableList<Float> {
             var list = meanTemperatures[region]
             if (list != null) {
                 return list
             }
 
             val dataStr: String = try {
-                loadResource(s3, bucketName, "temperature/$region")
+                loadResourceHTTP(bucketName, "temperature/$region")
             } catch (e: Exception) {
                 println(e.message)
                 "{}"

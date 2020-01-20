@@ -26,7 +26,7 @@ data class HeartRate(val age: Float,
         get() = heartRate
 }
 
-class HeartRateGenerator(s3: AmazonS3, bucketName: String): Generator<HeartRate>("HeartRate") {
+class HeartRateGenerator(s3: AmazonS3?, bucketName: String): Generator<HeartRate>("HeartRate") {
     init {
         if (heartRate == null) {
             initializeHeartRateData(s3, bucketName)
@@ -36,10 +36,8 @@ class HeartRateGenerator(s3: AmazonS3, bucketName: String): Generator<HeartRate>
     companion object {
         private var heartRate: List<HeartRate>? = null
 
-        private fun initializeHeartRateData(s3: AmazonS3, bucketName: String) {
-//            val resource = loadResource(s3, bucketName, "heartrate")
-            val resource = this::class.java.classLoader.getResource("heartRate/heart.dat").readText()
-
+        private fun initializeHeartRateData(s3: AmazonS3?, bucketName: String) {
+            val resource = loadResourceHTTP(bucketName, "heartrate")
             heartRate = resource.split("\n")
                 .map { line -> try { this.mapToHeartRate(line) } catch (e: Exception) {
                     HeartRate(0f, "", 0f, 0f, 0f, 0f,
@@ -69,9 +67,9 @@ class HeartRateGenerator(s3: AmazonS3, bucketName: String): Generator<HeartRate>
         }
 
         @Suppress("unused")
-        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
+        fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
             return uploadResource(s3, bucketName,
-                      "heartRate/heart.dat", "heartrate")
+                      "heartRate/heart.dat", "heartrate", force)
         }
     }
 

@@ -22,7 +22,7 @@ data class TaxiFares(val rideId: Long,
         get() = totalFare
 }
 
-class TaxiFaresGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiFares>("TaxiFares"){
+class TaxiFaresGenerator(s3: AmazonS3?, bucketName: String): Generator<TaxiFares>("TaxiFares"){
     init {
         if (taxiFares == null) {
             initializeTaxiFareData(s3, bucketName)
@@ -32,8 +32,8 @@ class TaxiFaresGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiFares>
     companion object {
         private var taxiFares: List<TaxiFares>? = null
 
-        private fun initializeTaxiFareData(s3: AmazonS3, bucketName: String) {
-            val resource = loadResource(s3, bucketName, "taxiFares")
+        private fun initializeTaxiFareData(s3: AmazonS3?, bucketName: String) {
+            val resource = loadResourceHTTP(bucketName, "taxiFares")
             taxiFares = resource.split("\n").map { line -> try { this.mapToTaxiFares(line) }
             catch (e: Exception) { TaxiFares(0, 0, 0, "", "", 0f, 0f, 0f, LocalDateTime.now()) } }.toList()
         }
@@ -53,9 +53,9 @@ class TaxiFaresGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiFares>
             )
         }
         @Suppress("unused")
-        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
+        fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
             return uploadResource(s3, bucketName,
-                "taxiData/nycTaxiFares_50M", "taxiFares")
+                "taxiData/nycTaxiFares_50M", "taxiFares", force)
         }
     }
 

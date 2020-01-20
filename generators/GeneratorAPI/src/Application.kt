@@ -1,7 +1,10 @@
 package com.fcp
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fcp.generators.BaseGenerator
 import com.fcp.generators.IGeneratorValue
 import com.fcp.generators.heart.HeartRateGenerator
@@ -13,6 +16,9 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.mbed.coap.client.CoapClient
 import com.mbed.coap.client.CoapClientBuilder
+import com.natpryce.konfig.ConfigurationProperties
+import com.natpryce.konfig.Key
+import com.natpryce.konfig.stringType
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
@@ -433,39 +439,41 @@ class ApplicationConfig {
     val gson = Gson()
 
     /** The S3 client for downloading generator data. */
-    val s3: AmazonS3
+    var s3: AmazonS3? = null
 
     /** The S3 bucket name. */
     val bucketName: String
 
     init {
- //      s3 = AmazonS3ClientBuilder.defaultClient()
-       bucketName = ""
+        bucketName = "fcp-ws19-generator-data-bucket"
 
-//        val config = ConfigurationProperties.fromResource("credentials")
-//        val awsCreds = BasicAWSCredentials(
-//            config[Key("aws_access_key_id", stringType)],
-//            config[Key("aws_secret_access_key", stringType)])
-//
+        // Uncomment to upload generator data
+        /*
+        val config = ConfigurationProperties.fromResource("credentials")
+        val awsCreds = BasicAWSCredentials(
+            config[Key("aws_access_key_id", stringType)],
+            config[Key("aws_secret_access_key", stringType)])
+
         s3 = AmazonS3ClientBuilder.standard()
-//            .withCredentials(AWSStaticCredentialsProvider(awsCreds))
+            .withCredentials(AWSStaticCredentialsProvider(awsCreds))
             .withRegion("eu-north-1").build()
-//
-//        bucketName = config[Key("bucket_name", stringType)]
-//        if (s3.doesBucketExistV2(bucketName)) {
-//            println("found existing bucket...")
-//        } else {
-//            try {
-//                println("creating bucket...")
-//                s3.createBucket(bucketName)
-//            } catch (e: AmazonS3Exception) {
-//                println(e.errorMessage)
-//                exitProcess(1)
-//            }
-//        }
-//
-//        // For debugging only
-//        uploadGeneratorData(s3, bucketName)
+
+        bucketName = config[Key("bucket_name", stringType)]
+        if (s3.doesBucketExistV2(bucketName)) {
+            println("found existing bucket...")
+        } else {
+            try {
+                println("creating bucket...")
+                s3.createBucket(bucketName)
+            } catch (e: AmazonS3Exception) {
+                println(e.errorMessage)
+                exitProcess(1)
+            }
+        }
+
+        // For debugging only
+        uploadGeneratorData(s3, bucketName, true)
+        */
     }
 }
 
@@ -481,24 +489,24 @@ fun isRunningInDockerContainer(): Boolean {
 }
 
 @Suppress("unused")
-fun uploadGeneratorData(s3Client: AmazonS3, bucketName: String) {
-    if (TemperatureGenerator.uploadResources(s3Client, bucketName)) {
+fun uploadGeneratorData(s3Client: AmazonS3, bucketName: String, force: Boolean = false) {
+    if (TemperatureGenerator.uploadResources(s3Client, bucketName, force)) {
         println("error uploading temperature data, exiting")
         exitProcess(1)
     }
-    if (HeartRateGenerator.uploadResources(s3Client, bucketName)) {
+    if (HeartRateGenerator.uploadResources(s3Client, bucketName, force)) {
         println("error uploading heart rate data, exiting")
         exitProcess(1)
     }
-    if (PowerGenerator.uploadResources(s3Client, bucketName)) {
+    if (PowerGenerator.uploadResources(s3Client, bucketName, force)) {
         println("error uploading power data, exiting")
         exitProcess(1)
     }
-    if (TaxiFaresGenerator.uploadResources(s3Client, bucketName)) {
+    if (TaxiFaresGenerator.uploadResources(s3Client, bucketName, force)) {
         println("error uploading taxi fare data, exiting")
         exitProcess(1)
     }
-    if (TaxiRidesGenerator.uploadResources(s3Client, bucketName)) {
+    if (TaxiRidesGenerator.uploadResources(s3Client, bucketName, force)) {
         println("error uploading taxi ride data, exiting")
         exitProcess(1)
     }
