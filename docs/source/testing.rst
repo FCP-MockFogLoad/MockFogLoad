@@ -68,5 +68,6 @@ The following parameters can be specified by applications for testing:
             * active(optional): Turn the generator off or on entirely.
             * endpoint(optional): ID of a fog node to which the generator should send its data.
             * seed(optional): Restart the generator with a new specified seed.
-            * format(optional): Format in which the generator will send data.
+            * format_string(optional): Format in which the generator will send data.
+            * protocol(optional): Which transport protocol should be used for communication. Can be UDP, CoAP or HTTP2. Default: HTTP2.
             * custom(optional): TBD/TODO Custom generator parameters, provided in a (key,value) format.
