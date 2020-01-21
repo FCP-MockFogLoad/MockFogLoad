@@ -330,6 +330,13 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                     }
 
                     val id = data["id"].asString
+                    val seed = if (data.has("seed")) {
+                        data["seed"].asLong
+                    } else {
+                        // Use a fixed seed to guarantee deterministic results
+                        -1
+                    }
+
                     val generator = if (config.generators.containsKey((id))) {
                         config.generators[id]!!
                     } else {
@@ -339,11 +346,11 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                         }
 
                         val baseGenerator = when (val kind = data["kind"].asString) {
-                            "Temperature" -> TemperatureGenerator(config.s3, config.bucketName)
-                            "Power" -> PowerGenerator(config.s3, config.bucketName)
-                            "TaxiFares" -> TaxiFaresGenerator(config.s3, config.bucketName)
-                            "TaxiRides" -> TaxiRidesGenerator(config.s3, config.bucketName)
-                            "HeartRate" -> HeartRateGenerator(config.s3, config.bucketName)
+                            "Temperature" -> TemperatureGenerator(config, seed, config.bucketName)
+                            "Power" -> PowerGenerator(config, seed,config.bucketName)
+                            "TaxiFares" -> TaxiFaresGenerator(config, seed, config.bucketName)
+                            "TaxiRides" -> TaxiRidesGenerator(config, seed, config.bucketName)
+                            "HeartRate" -> HeartRateGenerator(config, seed, config.bucketName)
                             else -> {
                                 println("invalid generator kind '$kind'")
                                 return
@@ -621,7 +628,7 @@ fun Application.module(testing: Boolean = false) {
          */
 
         // Heart Rate Generator
-        val heartRateGenerator = HeartRateGenerator(appConfig.s3, appConfig.bucketName)
+        val heartRateGenerator = HeartRateGenerator(appConfig, -1, appConfig.bucketName)
         route("/heartRate"){
             get("/random"){
                 call.respond(heartRateGenerator.getRandomValue(date))

@@ -1,8 +1,7 @@
 package com.fcp.temperature
 
-import com.amazonaws.AmazonServiceException
 import com.amazonaws.services.s3.AmazonS3
-import com.fcp.generators.BaseGenerator
+import com.fcp.ApplicationConfig
 import com.fcp.generators.Generator
 import com.google.gson.GsonBuilder
 import java.time.LocalDateTime
@@ -16,14 +15,14 @@ data class TemperatureData(val mean: Float,
                            val datapoints: Array<TemperatureDataPoint>,
                            val region: String) {}
 
-class TemperatureGenerator(s3: AmazonS3?, bucketName: String): Generator<Temperature>("Temperature") {
+class TemperatureGenerator(app: ApplicationConfig, seed: Long, bucketName: String): Generator<Temperature>("Temperature", app, seed) {
     var region: String
     val variation = 5f
     private var meanTemperatures: MutableList<Float>
 
     init {
         region = regions[Random.nextInt(0, regions.size)]
-        meanTemperatures = getMeanTemperatures(s3, bucketName, region)
+        meanTemperatures = getMeanTemperatures(bucketName, region)
     }
 
     companion object {
@@ -49,7 +48,7 @@ class TemperatureGenerator(s3: AmazonS3?, bucketName: String): Generator<Tempera
             return false
         }
 
-        fun getMeanTemperatures(s3: AmazonS3?, bucketName: String, region: String): MutableList<Float> {
+        fun getMeanTemperatures(bucketName: String, region: String): MutableList<Float> {
             var list = meanTemperatures[region]
             if (list != null) {
                 return list

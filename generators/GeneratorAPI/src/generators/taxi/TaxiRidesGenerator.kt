@@ -1,10 +1,12 @@
 package com.fcp.generators.taxi
 
 import com.amazonaws.services.s3.AmazonS3
+import com.fcp.ApplicationConfig
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
 import java.io.File
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import kotlin.collections.listOf
 
 data class TaxiRides(val rideId: Long,
@@ -27,18 +29,18 @@ data class TaxiRides(val rideId: Long,
         get() = startLongitude
 }
 
-class TaxiRidesGenerator(s3: AmazonS3?, bucketName: String): Generator<TaxiRides>("TaxiRides"){
+class TaxiRidesGenerator(app: ApplicationConfig, seed: Long, bucketName: String): Generator<TaxiRides>("TaxiRides", app, seed) {
 
     init {
         if (taxiRides == null) {
-            initializeTaxiRidesData(s3, bucketName)
+            initializeTaxiRidesData(bucketName)
         }
     }
 
     companion object {
         private var taxiRides: List<TaxiRides>? = null
 
-        private fun initializeTaxiRidesData(s3: AmazonS3?, bucketName: String) {
+        private fun initializeTaxiRidesData(bucketName: String) {
             val resource = loadResourceHTTP(bucketName, "taxiRides")
             taxiRides = resource.split("\n")
                 .map { line -> try { this.mapToTaxiRides(line) } catch(e: Exception) {
@@ -73,7 +75,8 @@ class TaxiRidesGenerator(s3: AmazonS3?, bucketName: String): Generator<TaxiRides
     }
 
     override fun getRandomValue(date: LocalDateTime): TaxiRides {
-        return taxiRides!!.random()
+        val passedMinutes = ChronoUnit.MINUTES.between(app.startDate, date)
+        return taxiRides!![(passedMinutes % taxiRides!!.size).toInt()]
     }
 
     override fun generateRandomValues(date: LocalDateTime, amount: Int): List<TaxiRides> {

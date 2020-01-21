@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(bodyParser.text());
 
 app.post("/", (req, res) => {
-  console.log(req.body);
+  console.log("[HTTP] " + req.body);
   res.send();
 });
 
@@ -26,13 +26,7 @@ server.on("error", function(error) {
 });
 
 server.on("message", function(msg, info) {
-  console.log("Data received from client : " + msg.toString());
-  console.log(
-    "Received %d bytes from %s:%d\n",
-    msg.length,
-    info.address,
-    info.port
-  );
+  console.log("[UDP] " + msg.toString());
 
   server.send(msg, info.port, "localhost", function(error) {
     if (error) {
@@ -65,7 +59,7 @@ var coap = require("coap"),
   coapPort = 5683;
 
 coapServer.on("request", function(req, res) {
-  console.log(`request at ${req.url}: ${req.payload}`);
+  console.log(`[CoAP] ${req.payload}`);
   res.end();
 });
 

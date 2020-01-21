@@ -1,11 +1,13 @@
 package com.fcp.generators.power
 
 import com.amazonaws.services.s3.AmazonS3
+import com.fcp.ApplicationConfig
 import com.fcp.generators.Generator
 import com.fcp.generators.IGeneratorValue
 import java.lang.NumberFormatException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 data class Power(override val date: LocalDateTime,
                  val activePower: Float,
@@ -20,17 +22,17 @@ data class Power(override val date: LocalDateTime,
         get() = Kwh
 }
 
-class PowerGenerator(s3: AmazonS3?, bucketName: String): Generator<Power>("Power") {
+class PowerGenerator(app: ApplicationConfig, seed: Long, bucketName: String): Generator<Power>("Power", app, seed) {
     init {
         if (powerConsumption == null) {
-            initializePowerConsumptionData(s3, bucketName)
+            initializePowerConsumptionData(bucketName)
         }
     }
 
     companion object {
         private var powerConsumption: List<Power>? = null
 
-        private fun initializePowerConsumptionData(s3: AmazonS3?, bucketName: String) {
+        private fun initializePowerConsumptionData(bucketName: String) {
             val resource = loadResourceHTTP(bucketName, "power_consumption")
             powerConsumption = resource.lines().map { line -> this.mapToPowerConsumption(line) }.toList()
         }
@@ -59,7 +61,8 @@ class PowerGenerator(s3: AmazonS3?, bucketName: String): Generator<Power>("Power
     }
 
     override fun getRandomValue(date: LocalDateTime): Power {
-        return powerConsumption!!.random()
+        val passedMinutes = ChronoUnit.MINUTES.between(app.startDate, date)
+        return powerConsumption!![(passedMinutes % powerConsumption!!.size).toInt()]
     }
 
     override fun generateRandomValues(date: LocalDateTime, amount: Int): List<Power> {

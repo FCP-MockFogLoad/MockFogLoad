@@ -3,6 +3,7 @@ package com.fcp.generators
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.CannedAccessControlList
+import com.fcp.ApplicationConfig
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.net.URL
@@ -27,7 +28,10 @@ interface IGeneratorValue {
     val value: Float
 }
 
-abstract class BaseGenerator(val type: String)  {
+abstract class BaseGenerator(val type: String, val app: ApplicationConfig, seed: Long) {
+    /** A seeded random number generator. */
+    protected val random: Random = Random(seed)
+
     /** Return a random value of the generated type, mainly used for testing. */
     abstract fun generateValue(date: LocalDateTime): IGeneratorValue
 
@@ -90,7 +94,7 @@ abstract class BaseGenerator(val type: String)  {
     }
 }
 
-abstract class Generator<T: IGeneratorValue>(type: String): BaseGenerator(type) {
+abstract class Generator<T: IGeneratorValue>(type: String, app: ApplicationConfig, seed: Long): BaseGenerator(type, app, seed) {
     override fun generateValue(date: LocalDateTime): IGeneratorValue {
         return getRandomValue(date)
     }
@@ -105,6 +109,6 @@ abstract class Generator<T: IGeneratorValue>(type: String): BaseGenerator(type) 
 
     /** Helper function for generating floats within an interval. */
     protected fun randomFloat(from: Float, to: Float): Float {
-        return from + (abs(from - to) * Random.nextFloat());
+        return from + (abs(from - to) * random.nextFloat());
     }
 }
