@@ -376,6 +376,10 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                         generator.granularity = data["granularity"].asLong
                     }
 
+                    if (data.has("seconds_between_datapoints")) {
+                        generator.granularity = (data["seconds_between_datapoints"].asFloat * 1000).toLong()
+                    }
+
                     if (data.has("date")) {
                         generator.currentDate = LocalDateTime.ofInstant(
                             Instant.ofEpochMilli(data["date"].asLong),
