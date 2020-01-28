@@ -1,9 +1,7 @@
-package com.fcp.generators.power
+package com.fcp.generators
 
 import com.amazonaws.services.s3.AmazonS3
 import com.fcp.ApplicationConfig
-import com.fcp.generators.Generator
-import com.fcp.generators.IGeneratorValue
 import java.lang.NumberFormatException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -32,9 +30,23 @@ class PowerGenerator(app: ApplicationConfig, seed: Long, bucketName: String): Ge
     companion object {
         private var powerConsumption: List<Power>? = null
 
+        init {
+            registerGeneratorType(
+                "Power",
+                PowerGenerator::class
+            )
+        }
+
         private fun initializePowerConsumptionData(bucketName: String) {
-            val resource = loadResourceHTTP(bucketName, "power_consumption")
-            powerConsumption = resource.lines().map { line -> this.mapToPowerConsumption(line) }.toList()
+            val resource = loadResourceHTTP(
+                bucketName,
+                "power_consumption"
+            )
+            powerConsumption = resource.lines().map { line ->
+                mapToPowerConsumption(
+                    line
+                )
+            }.toList()
         }
 
         private fun mapToPowerConsumption(line : String): Power {
@@ -44,19 +56,45 @@ class PowerGenerator(app: ApplicationConfig, seed: Long, bucketName: String): Ge
             }
 
             return Power(
-                LocalDateTime.parse(result.get(0) + " " + result.get(1), DateTimeFormatter.ofPattern("d/M/uuuu HH:mm:ss")),
-                try { result.get(2).toFloat() } catch (e: NumberFormatException) { 0.0f },
-                try { result.get(3).toFloat() } catch (e: NumberFormatException) { 0.0f },
-                try { result.get(4).toFloat() } catch (e: NumberFormatException) { 0.0f },
-                try { result.get(5).toFloat() } catch (e: NumberFormatException) { 0.0f },
-                try { result.get(6).toFloat() + result.get(7).toFloat() + result.get(8).toFloat() } catch (e: NumberFormatException) { 0.0f })
+                LocalDateTime.parse(
+                    result.get(0) + " " + result.get(1),
+                    DateTimeFormatter.ofPattern("d/M/uuuu HH:mm:ss")
+                ),
+                try {
+                    result.get(2).toFloat()
+                } catch (e: NumberFormatException) {
+                    0.0f
+                },
+                try {
+                    result.get(3).toFloat()
+                } catch (e: NumberFormatException) {
+                    0.0f
+                },
+                try {
+                    result.get(4).toFloat()
+                } catch (e: NumberFormatException) {
+                    0.0f
+                },
+                try {
+                    result.get(5).toFloat()
+                } catch (e: NumberFormatException) {
+                    0.0f
+                },
+                try {
+                    result.get(6).toFloat() + result.get(7).toFloat() + result.get(8).toFloat()
+                } catch (e: NumberFormatException) {
+                    0.0f
+                }
+            )
         }
 
         @Suppress("unused")
         fun uploadResources(s3: AmazonS3, bucketName: String, forceOverride: Boolean = false): Boolean {
-            return uploadResource(s3, bucketName,
+            return uploadResource(
+                s3, bucketName,
                 "power/power_consumption.txt", "power_consumption",
-                forceOverride)
+                forceOverride
+            )
         }
     }
 

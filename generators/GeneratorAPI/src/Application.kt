@@ -1,24 +1,17 @@
 package com.fcp
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider
-import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.amazonaws.services.s3.model.AmazonS3Exception
 import com.fcp.generators.BaseGenerator
 import com.fcp.generators.IGeneratorValue
-import com.fcp.generators.heart.HeartRateGenerator
-import com.fcp.generators.power.PowerGenerator
-import com.fcp.generators.taxi.TaxiFaresGenerator
-import com.fcp.generators.taxi.TaxiRidesGenerator
-import com.fcp.temperature.TemperatureGenerator
+import com.fcp.generators.HeartRateGenerator
+import com.fcp.generators.PowerGenerator
+import com.fcp.generators.TaxiFaresGenerator
+import com.fcp.generators.TaxiRidesGenerator
+import com.fcp.generators.TemperatureGenerator
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.mbed.coap.client.CoapClient
 import com.mbed.coap.client.CoapClientBuilder
-import com.natpryce.konfig.ConfigurationProperties
-import com.natpryce.konfig.Key
-import com.natpryce.konfig.stringType
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
@@ -141,7 +134,6 @@ class ActiveGenerator(val id: String, val config: ApplicationConfig, val generat
         loop@ for (prop in cl.memberProperties) {
             val name = prop.name
 
-            // prop as KProperty1<out IGeneratorValue, Any>
             val value = prop.getter.call(data).toString()
             values.put(name, value)
         }
@@ -345,18 +337,7 @@ data class GeneratorEvent(val type: String, val timestamp: String, val data: Jso
                             return
                         }
 
-                        val baseGenerator = when (val kind = data["kind"].asString) {
-                            "Temperature" -> TemperatureGenerator(config, seed, config.bucketName)
-                            "Power" -> PowerGenerator(config, seed,config.bucketName)
-                            "TaxiFares" -> TaxiFaresGenerator(config, seed, config.bucketName)
-                            "TaxiRides" -> TaxiRidesGenerator(config, seed, config.bucketName)
-                            "HeartRate" -> HeartRateGenerator(config, seed, config.bucketName)
-                            else -> {
-                                println("invalid generator kind '$kind'")
-                                return
-                            }
-                        }
-
+                        val baseGenerator = BaseGenerator.spawnGenerator(data["kind"].asString, config, seed, config.bucketName)
                         ActiveGenerator(id, config, baseGenerator)
                     }
 
@@ -561,8 +542,9 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
+        /*
         // Temperature generator
-        /* val temperatureGenerator = TemperatureGenerator(appConfig.s3, appConfig.bucketName)
+        val temperatureGenerator = TemperatureGenerator(appConfig,-1, appConfig.bucketName)
         route("/temperature") {
             get("/random") {
                 call.respond(temperatureGenerator.getRandomValue(date))
@@ -580,7 +562,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Power Generator
-        val powerGenerator = PowerGenerator(appConfig.s3, appConfig.bucketName)
+        val powerGenerator = PowerGenerator(appConfig,-1, appConfig.bucketName)
         route("/power"){
             get("/random"){
                 call.respond(powerGenerator.getRandomValue(date))
@@ -597,7 +579,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Taxi Fares Generator
-        val taxiFaresGenerator = TaxiFaresGenerator(appConfig.s3, appConfig.bucketName)
+        val taxiFaresGenerator = TaxiFaresGenerator(appConfig, -1, appConfig.bucketName)
         route("/taxiFares"){
             get("/random"){
                 call.respond(taxiFaresGenerator.getRandomValue(date))
@@ -614,7 +596,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         // Taxi Rides Generator
-        val taxiRidesGenerator = TaxiRidesGenerator(appConfig.s3, appConfig.bucketName)
+        val taxiRidesGenerator = TaxiRidesGenerator(appConfig, -1, appConfig.bucketName)
         route("/taxiRides"){
             get("/random"){
                 call.respond(taxiRidesGenerator.getRandomValue(date))
@@ -629,7 +611,6 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
         }
-         */
 
         // Heart Rate Generator
         val heartRateGenerator = HeartRateGenerator(appConfig, -1, appConfig.bucketName)
@@ -646,7 +627,7 @@ fun Application.module(testing: Boolean = false) {
                     }
                 }
             }
-        }
+        }*/
     }
 }
 

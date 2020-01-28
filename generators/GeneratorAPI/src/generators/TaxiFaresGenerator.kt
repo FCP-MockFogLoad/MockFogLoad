@@ -1,9 +1,7 @@
-package com.fcp.generators.taxi
+package com.fcp.generators
 
 import com.amazonaws.services.s3.AmazonS3
 import com.fcp.ApplicationConfig
-import com.fcp.generators.Generator
-import com.fcp.generators.IGeneratorValue
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
@@ -34,10 +32,22 @@ class TaxiFaresGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
     companion object {
         private var taxiFares: List<TaxiFares>? = null
 
+        init {
+            registerGeneratorType(
+                "TaxiFares",
+                TaxiFaresGenerator::class
+            )
+        }
+
         private fun initializeTaxiFareData(bucketName: String) {
-            val resource = loadResourceHTTP(bucketName, "taxiFares")
-            taxiFares = resource.split("\n").map { line -> try { this.mapToTaxiFares(line) }
-            catch (e: Exception) { TaxiFares(0, 0, 0, "", "", 0f, 0f, 0f, LocalDateTime.now()) } }.toList()
+            val resource =
+                loadResourceHTTP(bucketName, "taxiFares")
+            taxiFares = resource.split("\n").map { line -> try {
+                mapToTaxiFares(line)
+            }
+            catch (e: Exception) {
+                TaxiFares(0, 0, 0, "", "", 0f, 0f, 0f, LocalDateTime.now())
+            } }.toList()
         }
 
         private fun mapToTaxiFares(line: String): TaxiFares {
@@ -56,8 +66,10 @@ class TaxiFaresGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
         }
         @Suppress("unused")
         fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
-            return uploadResource(s3, bucketName,
-                "taxiData/nycTaxiFares_50M", "taxiFares", force)
+            return uploadResource(
+                s3, bucketName,
+                "taxiData/nycTaxiFares_50M", "taxiFares", force
+            )
         }
     }
 

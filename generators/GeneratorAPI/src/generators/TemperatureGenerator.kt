@@ -1,14 +1,18 @@
-package com.fcp.temperature
+package com.fcp.generators
 
 import com.amazonaws.services.s3.AmazonS3
 import com.fcp.ApplicationConfig
-import com.fcp.generators.Generator
 import com.google.gson.GsonBuilder
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
+
+data class Temperature(override val date: LocalDateTime, override val value: Float) : IGeneratorValue {
+    override val unit: String
+        get() = "°C"
+}
 
 data class TemperatureDataPoint(val date: String, val temp: Float) {}
 data class TemperatureData(val mean: Float,
@@ -22,7 +26,8 @@ class TemperatureGenerator(app: ApplicationConfig, seed: Long, bucketName: Strin
 
     init {
         region = regions[Random.nextInt(0, regions.size)]
-        meanTemperatures = getMeanTemperatures(bucketName, region)
+        meanTemperatures =
+            getMeanTemperatures(bucketName, region)
     }
 
     companion object {
@@ -36,11 +41,21 @@ class TemperatureGenerator(app: ApplicationConfig, seed: Long, bucketName: Strin
 
         val meanTemperatures = HashMap<String, MutableList<Float>>()
 
+        init {
+            registerGeneratorType(
+                "Temperature",
+                TemperatureGenerator::class
+            )
+        }
+
         @Suppress("unused")
         fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
             for (region in regions) {
-                if (uploadResource(s3, bucketName, "temperature/$region.json",
-                              "temperature/$region", force)) {
+                if (uploadResource(
+                        s3, bucketName, "temperature/$region.json",
+                        "temperature/$region", force
+                    )
+                ) {
                     return true
                 }
             }
@@ -55,7 +70,10 @@ class TemperatureGenerator(app: ApplicationConfig, seed: Long, bucketName: Strin
             }
 
             val dataStr: String = try {
-                loadResourceHTTP(bucketName, "temperature/$region")
+                loadResourceHTTP(
+                    bucketName,
+                    "temperature/$region"
+                )
             } catch (e: Exception) {
                 println(e.message)
                 "{}"

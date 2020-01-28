@@ -1,11 +1,8 @@
-package com.fcp.generators.heart
+package com.fcp.generators
 
 import com.amazonaws.services.s3.AmazonS3
 import com.fcp.ApplicationConfig
-import com.fcp.generators.Generator
-import com.fcp.generators.IGeneratorValue
 import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 
 data class HeartRate(val age: Int,
                      val sex: String,
@@ -34,7 +31,8 @@ class HeartRateGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
         Sleep;
     }
 
-    var currentActivity: Activity = Activity.Idle
+    var currentActivity: Activity =
+        Activity.Idle
     var currentActivityStart: LocalDateTime
     var currentActivityEnd: LocalDateTime
     var baseHeartRate: HeartRate
@@ -56,13 +54,22 @@ class HeartRateGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
     companion object {
         private var heartRate: List<HeartRate>? = null
 
+        init {
+            registerGeneratorType("HeartRate", HeartRateGenerator::class)
+        }
+
         private fun initializeHeartRateData(bucketName: String) {
             val resource = loadResourceHTTP(bucketName, "heartrate")
             heartRate = resource.split("\n")
-                .map { line -> try { this.mapToHeartRate(line) } catch (e: Exception) {
+                .map { line -> try {
+                    mapToHeartRate(line)
+                } catch (e: Exception) {
                     println(e.message)
-                    HeartRate(0, "", 0f, 0f, 0f, 0f,
-                        0f, 0f, 0f, 0f, LocalDateTime.now()) } }.toList()
+                    HeartRate(
+                        0, "", 0f, 0f, 0f, 0f,
+                        0f, 0f, 0f, 0f, LocalDateTime.now()
+                    )
+                } }.toList()
         }
 
         private fun mapToHeartRate(line : String) : HeartRate {
@@ -84,7 +91,8 @@ class HeartRateGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
                 result.get(7).toFloat(),
                 result.get(8).toFloat(),
                 result.get(9).toFloat(),
-                LocalDateTime.now())
+                LocalDateTime.now()
+            )
         }
 
         @Suppress("unused")

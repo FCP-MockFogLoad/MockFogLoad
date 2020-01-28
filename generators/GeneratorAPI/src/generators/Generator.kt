@@ -11,6 +11,8 @@ import java.time.LocalDateTime
 import java.util.*
 import kotlin.math.abs
 import kotlin.random.Random
+import kotlin.reflect.KClass
+import kotlin.reflect.full.createType
 
 
 data class GeneratorConfig(val type: String, val amount: Int) {
@@ -90,6 +92,53 @@ abstract class BaseGenerator(val type: String, val app: ApplicationConfig, seed:
             inputStream.close()
 
             return out.toString()
+        }
+
+        /** A dictionary of registered generator types, used for reflection. */
+        val registeredGenerators = HashMap<String, KClass<*>>()
+
+        /** Register a new generator type. */
+        fun registerGeneratorType(name: String, class_: KClass<*>) {
+            if (registeredGenerators.containsKey(name)) {
+                println("duplicate generator type '$name'")
+                return
+            }
+
+            println("registering generator type '$name'...")
+            registeredGenerators[name] = class_
+        }
+
+        /** Create a generator by name. */
+        fun spawnGenerator(name: String, app: ApplicationConfig, seed: Long, bucketName: String): BaseGenerator {
+            // Force class to load
+            Class.forName("com.fcp.generators.${name}Generator")
+
+            if (!registeredGenerators.containsKey(name)) {
+                throw Exception("unknown generator type '$name'")
+            }
+
+            val class_ = registeredGenerators[name]!!
+            val appConfigType = ApplicationConfig::class.createType()
+            val longType = Long::class.createType()
+            val stringType = String::class.createType()
+
+            for (ctor in class_.constructors) {
+                if (ctor.parameters.size != 3)
+                    continue
+
+                if (ctor.parameters[0].type != appConfigType)
+                    continue
+
+                if (ctor.parameters[1].type != longType)
+                    continue
+
+                if (ctor.parameters[2].type != stringType)
+                    continue
+
+                return ctor.call(app, seed, bucketName) as BaseGenerator
+            }
+
+            throw Exception("generator '$name' is missing constructor!")
         }
     }
 }

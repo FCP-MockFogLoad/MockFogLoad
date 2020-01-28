@@ -1,13 +1,9 @@
-package com.fcp.generators.taxi
+package com.fcp.generators
 
 import com.amazonaws.services.s3.AmazonS3
 import com.fcp.ApplicationConfig
-import com.fcp.generators.Generator
-import com.fcp.generators.IGeneratorValue
-import java.io.File
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
-import kotlin.collections.listOf
 
 data class TaxiRides(val rideId: Long,
                      val isStart : String,
@@ -40,13 +36,26 @@ class TaxiRidesGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
     companion object {
         private var taxiRides: List<TaxiRides>? = null
 
+        init {
+            registerGeneratorType(
+                "TaxiRides",
+                TaxiRidesGenerator::class
+            )
+        }
+
         private fun initializeTaxiRidesData(bucketName: String) {
-            val resource = loadResourceHTTP(bucketName, "taxiRides")
+            val resource =
+                loadResourceHTTP(bucketName, "taxiRides")
             taxiRides = resource.split("\n")
-                .map { line -> try { this.mapToTaxiRides(line) } catch(e: Exception) {
-                    TaxiRides(0, "", "", "",
+                .map { line -> try {
+                    mapToTaxiRides(line)
+                } catch(e: Exception) {
+                    TaxiRides(
+                        0, "", "", "",
                         0f, 0f, 0f, 0f,
-                        0, 0, 0, LocalDateTime.now()) } }.toList()
+                        0, 0, 0, LocalDateTime.now()
+                    )
+                } }.toList()
         }
 
         private fun mapToTaxiRides(line: String): TaxiRides {
@@ -69,8 +78,10 @@ class TaxiRidesGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
 
         @Suppress("unused")
         fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
-            return uploadResource(s3, bucketName,
-                "taxiData/nycTaxiRides_50M", "taxiRides", force)
+            return uploadResource(
+                s3, bucketName,
+                "taxiData/nycTaxiRides_50M", "taxiRides", force
+            )
         }
     }
 
