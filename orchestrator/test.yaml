@@ -4,12 +4,25 @@ stages:
     time: 10
     node:
     - id: Node1
+      applications:
+      - name: TestApp
+        cpu: 0.3
+        memory: 10MB
+
+      interfaces:
+      - id: eth1
+        active: false
+        bandwidth: 10kBit
+
       generators:
       - id: HR1
         kind: HeartRate
         frequency: 30
-        endpoint: Node2
+        endpoint_ip: Node2
+        endpoint_port: 8080
         active: true
+        format_string: This is the Heartrate ${HeartRate}
+        protocol: UDP
   - id: 2
     time: 10
     node:
