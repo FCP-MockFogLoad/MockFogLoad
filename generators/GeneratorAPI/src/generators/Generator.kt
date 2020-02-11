@@ -8,6 +8,7 @@ import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.*
 import kotlin.math.abs
 import kotlin.random.Random
@@ -22,6 +23,12 @@ data class GeneratorConfig(val type: String, val amount: Int) {
 interface IGeneratorValue {
     /** The date and time of this datapoint. */
     val date: LocalDateTime
+
+    /** The timestamp of this datapoint. */
+    val timestamp: Long
+        get() {
+            return date.toEpochSecond(ZoneOffset.UTC)
+        }
 
     /** The unit of the generated values. */
     val unit: String
