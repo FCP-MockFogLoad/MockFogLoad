@@ -27,7 +27,7 @@ interface IGeneratorValue {
     /** The timestamp of this datapoint. */
     val timestamp: Long
         get() {
-            return date.toEpochSecond(ZoneOffset.UTC)
+            return date.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
         }
 
     /** The unit of the generated values. */
