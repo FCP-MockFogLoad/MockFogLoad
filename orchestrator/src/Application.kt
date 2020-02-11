@@ -8,11 +8,14 @@ import io.ktor.application.Application
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.engine.apache.Apache
+import io.ktor.client.request.request
+import io.ktor.client.request.url
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
 import java.nio.file.FileSystems
 import java.nio.file.Files
@@ -28,36 +31,37 @@ data class NodeMap(val nodes: List<NodeM>)
 @Serializable
 data class App(val name: String, val cpu: Float? = null, val memory: String? = null)
 @Serializable
-data class Interface(val id: String, val active: Boolean? = null, val bandwidth: String? = null)
+data class Interface(val id: String, val active: Boolean? = null, val bandwidth: String? = null, val delay: String? = null, val loss: String? = null)
 @Serializable
-data class Generator(val id: String, val kind: String? =null, var endpoint: String? =null, var endpoint_ip: String? =null, var endpoint_port: String? =null, var active: Boolean? =null, var frequency: Int? = null, var protocol: String? =null, var format_string: String? =null)
+data class Generator(val id: String, val kind: String? =null, var endpoint: String? =null, var endpoint_port: String? =null, var active: Boolean? =null, var frequency: Int? = null, var protocol: String? =null, var format_string: String? =null, var seed: String? =null, var events_per_second: Int? =null)
 @Serializable
 data class Node(val id: String, val applications: List<App> = emptyList(), val interfaces: List<Interface> = emptyList(), val generators: List<Generator> = emptyList())
 @Serializable
-data class Stage(val id: Int? =null, val time: Long = 0, val node: List<Node> = emptyList())
+data class Stage(val id: String, val time: Long = 0, val node: List<Node> = emptyList())
 @Serializable
 data class Test(val testName: String? =null, val stages: List<Stage> = emptyList())
 @Serializable
 data class InstructionsG(val type: String, val timestamp: String, var data: Generator)
 @Serializable
-data class InstructionsA(val timestamp: String, var data: App)
+data class InstructionsA(val id: String, val timestamp: String, var data: App)
 @Serializable
-data class InstructionsI(val timestamp: String, var data: Interface)
+data class InstructionsI(val id: String, val timestamp: String, var data: Interface)
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
 
     var orchestrator = Orchestrator()
     orchestrator.start()
+    //orchestrator.getReport("null",3)
 }
 
 class Orchestrator() {
     // Delay before running the test script
-    private val delay = 1
+    private val delay = 0
     // Agent port
-    private val agentPort = "20201"
+    private val agentPort = "20200"
     // Generator port
-    private val generatorPort = "20202"
+    private val generatorPort = "20201"
     // Parse the test script
     private val test = parseTests("test.yaml")
     // Parse the node map
@@ -76,20 +80,27 @@ class Orchestrator() {
         for (stage in test.stages){
             totalTime += stage.time
             // Temporary output of current test stage
-            Timer("Tests", false).schedule((startTime+totalTime-(System.currentTimeMillis() / 1000L))*1000) {
+            Timer("Stages", false).schedule((startTime+totalTime-(System.currentTimeMillis() / 1000L))*1000) {
                 print("Running stage " + stage.id + "\n" + "Current time: " + (System.currentTimeMillis() / 1000L) + "\n")
+                for (remote in nodeMap.nodes){
+//                    val report = getReport(remote.ip, stage.id)
+//                    print(report)
+                }
             }
             // Iterate over all nodes in current stage
             for (node in stage.node){
                 if (node.id == "all"){
                     // Iterate over all nodes in nodeMap
                     for (remote in this.nodeMap.nodes){
-                        processInstructions(node, ((startTime + totalTime)*1000L), remote.ip)
+                        processInstructions(stage.id,  ((startTime + totalTime)*1000L), node, remote.ip)
                     }
                 } else {
-                    processInstructions(node, ((startTime + totalTime)*1000L), getIPofNode(node.id))
+                    processInstructions(stage.id, ((startTime + totalTime)*1000L), node, getIPofNode(node.id))
                 }
             }
+        }
+        Timer("Reports", false).schedule((startTime+totalTime+10-(System.currentTimeMillis() / 1000L))*1000) {
+            //processReports()
         }
     }
 
@@ -114,27 +125,27 @@ class Orchestrator() {
     }
 
     // Packs and sends application related data to agent
-    private fun packAndSendApplication(app: App, timestamp: Long, host: String) {
+    private fun packAndSendApplication(stage: String, timestamp: Long, app: App, host: String) {
         val instructions =
-            InstructionsA(timestamp = timestamp.toString(), data = app)
+            InstructionsA(id = stage, timestamp = timestamp.toString(), data = app)
 
         val mapper = ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         val packedInstructions = "["+mapper.writeValueAsString(instructions)+"]"
         print(packedInstructions + "\n")
-        sendInstructions(packedInstructions, this.client, "http://$host:${this.agentPort}/")
+        sendInstructions(packedInstructions, this.client, "http://$host:${this.agentPort}/application")
     }
 
     // Packs and sends interface related instructions to agent
-    private fun packAndSendInterface(iface: Interface, timestamp: Long, host: String) {
+    private fun packAndSendInterface(stage: String, timestamp: Long, iface: Interface, host: String) {
         val instructions =
-            InstructionsI(timestamp = timestamp.toString(), data = iface)
+            InstructionsI(id = stage, timestamp = timestamp.toString(), data = iface)
 
         val mapper = ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         val packedInstructions = "["+mapper.writeValueAsString(instructions)+"]"
         print(packedInstructions + "\n")
-        sendInstructions(packedInstructions, this.client, "http://$host:${this.agentPort}/")
+        sendInstructions(packedInstructions, this.client, "http://$host:${this.agentPort}/interface")
     }
 
     // Packs and sends instructions to generator
@@ -151,6 +162,7 @@ class Orchestrator() {
 
     // Sends Instructions to a remote
     private fun sendInstructions(instructions: String, client: HttpClient, host: String){
+        print("Sending to $host \n")
         GlobalScope.launch (){
             client.call(host) {
                 method = HttpMethod.Post
@@ -171,24 +183,52 @@ class Orchestrator() {
     }
 
     // Process and sends all instructions to agents and generators
-    private fun processInstructions(node: Node, timestamp: Long, host: String) {
+    private fun processInstructions(stage: String, timestamp: Long, node: Node, host: String) {
 
         // Iterate over all applications
         for (app in node.applications) {
-            packAndSendApplication(app, timestamp, host)
+            packAndSendApplication(stage, timestamp, app, host)
         }
         // Iterate over all Interfaces
         for (iface in node.interfaces) {
-            packAndSendInterface(iface, timestamp, host)
+            print("Packing iface")
+            packAndSendInterface(stage, timestamp, iface,  host)
         }
         // Iterate over all generators
         for (generator in node.generators) {
-            if (generator.endpoint_ip != null){
-                val remote = getIPofNode(generator.endpoint_ip)
-                generator.endpoint = "$remote:${generator.endpoint_port}"
+            if (generator.endpoint != null){
+                val remote = getIPofNode(generator.endpoint)
+                if (generator.protocol == "HTTP" || generator.protocol == null){
+                    generator.endpoint = "http://$remote:${generator.endpoint_port}/"
+                } else {
+                    generator.endpoint = "$remote:${generator.endpoint_port}"
+                }
+                generator.endpoint_port = null
             }
             packAndSendGenerator(generator, timestamp, host)
         }
+    }
+
+    private fun processReports() {
+        for (node in nodeMap.nodes){
+            var current_stage = 0
+            for (stage in test.stages){
+                print(getReport(node.ip, current_stage))
+                current_stage++
+            }
+            print(getReport(node.ip, current_stage))
+        }
+    }
+
+    fun getReport(agentIP: String, stage: Int): String{
+        val host = "$agentIP:${this.agentPort}/reports/$stage"
+        val text = runBlocking {
+            return@runBlocking client.request<String> {
+                url(host)
+                method = HttpMethod.Get
+            }
+        }
+        return text
     }
 }
 

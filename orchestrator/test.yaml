@@ -1,32 +1,174 @@
 testName: HeartRate
 stages:
   - id: 1
-    time: 10
+    time: 1
     node:
-    - id: Node1
-      applications:
-      - name: TestApp
-        cpu: 0.3
-        memory: 10MB
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps
 
-      interfaces:
-      - id: eth1
-        active: false
-        bandwidth: 10kBit
+      - id: generator2
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps
 
-      generators:
-      - id: HR1
-        kind: HeartRate
-        frequency: 30
-        endpoint_ip: Node2
-        endpoint_port: 8080
-        active: true
-        format_string: This is the Heartrate ${HeartRate}
-        protocol: UDP
+      - id: generator2
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 30
+            endpoint: application_layer1_1
+            endpoint_port: 30444
+            active: true
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+#            protocol: HTTP
+            seed: 30
+
   - id: 2
-    time: 10
+    time: 20
     node:
-    - id: Node1
-      generators:
-      - id: HR1
-        active: false
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            active: false
+
+  - id: 3
+    time: 20
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            active: true
+
+  - id: 4
+    time: 20
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 200bps
+
+  - id: 5
+    time: 20
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 20000bps
+
+  - id: 6
+    time: 20
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps
+
+  - id: 7
+    time: 20
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            loss: 50
+
+  - id: 8
+    time: 20
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            loss: 90
+
+  - id: 9
+    time: 20
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps
+
+  - id: 9
+    time: 20
+    node:
+      - id: generator1
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 100
+            endpoint: application_layer1_1
+            endpoint_port: 30444
+            active: true
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+            protocol: UDP
+            seed: 10
+      - id: generator3
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 1
+            endpoint: application_layer1_2
+            endpoint_port: 30444
+            active: true
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+            protocol: UDP
+            seed: 40
+      - id: generator4
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 1
+            endpoint: application_layer1_2
+            endpoint_port: 30444
+            active: true
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+            #            protocol: HTTP
+            seed: 50
+  - id: 10
+    time: 20
+    node:
+      - id: generator1
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 100
+            endpoint: application_layer1_1
+            endpoint_port: 30444
+            active: false
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+            protocol: UDP
+            seed: 10
+      - id: generator3
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 1
+            endpoint: application_layer1_2
+            endpoint_port: 30444
+            active: false
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+            protocol: UDP
+            seed: 40
+      - id: generator4
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 1
+            endpoint: application_layer1_2
+            endpoint_port: 30444
+            active: false
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+            #            protocol: HTTP
+            seed: 50
+      - id: generator2
+        generators:
+          - id: HR1
+            kind: HeartRate
+            events_per_second: 30
+            endpoint: application_layer1_1
+            endpoint_port: 30444
+            active: false
+            format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+            #            protocol: HTTP
+            seed: 30
