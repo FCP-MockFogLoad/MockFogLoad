@@ -17,6 +17,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
+import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.util.Timer
@@ -46,6 +47,8 @@ data class InstructionsG(val type: String, val timestamp: String, var data: Gene
 data class InstructionsA(val id: String, val timestamp: String, var data: App)
 @Serializable
 data class InstructionsI(val id: String, val timestamp: String, var data: Interface)
+@Serializable
+data class Report(val id: String)
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
@@ -66,8 +69,12 @@ class Orchestrator() {
     private val test = parseTests("test.yaml")
     // Parse the node map
     private val nodeMap = parseNodes("map.yaml")
+    // Reports
+    private val reports = File("reports.json")
     // Get start time for the tests
     private val startTime = (System.currentTimeMillis() / 1000L) + delay
+    // Array of all scheduled reports
+    private val reportRequests = HashSet<String>()
 
     // Client that will be used for sending HTTP requests to Agent and Generators
     val client = HttpClient(Apache) {
@@ -75,6 +82,7 @@ class Orchestrator() {
 
     fun start() {
         var totalTime: Long = 0
+        reports.writeText("")
         print("Running test: " + test.testName + ", starting at " + startTime + "\n")
         // Iterate over all test stages
         for (stage in test.stages){
@@ -99,9 +107,6 @@ class Orchestrator() {
                 }
             }
         }
-        Timer("Reports", false).schedule((startTime+totalTime+10-(System.currentTimeMillis() / 1000L))*1000) {
-            //processReports()
-        }
     }
 
     // Parses test yaml
@@ -123,6 +128,26 @@ class Orchestrator() {
         val objMap = parser.readValue(yaml, NodeMap::class.java)
         return(objMap)
     }
+    // Tries to find the IP for a given node ID in the NodeMap
+    private fun getIPofNode(id: String?): String{
+        for (node in this.nodeMap.nodes) {
+            if (node.id == id) {
+                return(node.ip)
+            }
+        }
+        print("Node does not exist in map")
+        exitProcess(0)
+    }
+    // Tries to fine the NodeID for a given IP
+    private fun getNodeFromIP(ip: String?): String{
+        for (node in this.nodeMap.nodes) {
+            if (node.ip == ip) {
+                return(node.id)
+            }
+        }
+        print("Node does not exist in map")
+        exitProcess(0)
+    }
 
     // Packs and sends application related data to agent
     private fun packAndSendApplication(stage: String, timestamp: Long, app: App, host: String) {
@@ -132,8 +157,15 @@ class Orchestrator() {
         val mapper = ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         val packedInstructions = "["+mapper.writeValueAsString(instructions)+"]"
-        print(packedInstructions + "\n")
         sendInstructions(packedInstructions, this.client, "http://$host:${this.agentPort}/application")
+        if (!reportRequests.contains(stage+host)) {
+            reportRequests.add(stage+host)
+            Timer(stage+host, false).schedule(timestamp - System.currentTimeMillis() + 3000) {
+                var report = getReport(host, stage)
+                report = (report.substring(0,2) + "    stage: \"$stage\", \n    host: \"${getNodeFromIP(host)}\"," + report.substring(1,report.length))
+                reports.writeText(reports.readText()+","+report)
+            }
+        }
     }
 
     // Packs and sends interface related instructions to agent
@@ -144,8 +176,15 @@ class Orchestrator() {
         val mapper = ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         val packedInstructions = "["+mapper.writeValueAsString(instructions)+"]"
-        print(packedInstructions + "\n")
         sendInstructions(packedInstructions, this.client, "http://$host:${this.agentPort}/interface")
+        if (!reportRequests.contains(stage+host)) {
+            reportRequests.add(stage+host)
+            Timer(stage+host, false).schedule(timestamp - System.currentTimeMillis() + 3000) {
+                var report = getReport(host, stage)
+                report = (report.substring(0,2) + "    stage: $stage, \n    host: ${getNodeFromIP(host)}," + report.substring(1,report.length))
+                reports.writeText(reports.readText()+report)
+            }
+        }
     }
 
     // Packs and sends instructions to generator
@@ -156,30 +195,7 @@ class Orchestrator() {
         val mapper = ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         val packedInstructions = "["+mapper.writeValueAsString(instructions)+"]"
-        print(packedInstructions + "\n")
         sendInstructions(packedInstructions, this.client, "http://$host:${this.generatorPort}/config")
-    }
-
-    // Sends Instructions to a remote
-    private fun sendInstructions(instructions: String, client: HttpClient, host: String){
-        print("Sending to $host \n")
-        GlobalScope.launch (){
-            client.call(host) {
-                method = HttpMethod.Post
-                body = TextContent(instructions, contentType = ContentType.Application.Json)
-            }
-        }
-    }
-
-    // Tries to find the IP for a given node ID in the NodeMap
-    private fun getIPofNode(id: String?): String{
-        for (node in this.nodeMap.nodes) {
-            if (node.id == id) {
-                return(node.ip)
-            }
-        }
-        print("Node does not exist in map")
-        exitProcess(0)
     }
 
     // Process and sends all instructions to agents and generators
@@ -191,7 +207,6 @@ class Orchestrator() {
         }
         // Iterate over all Interfaces
         for (iface in node.interfaces) {
-            print("Packing iface")
             packAndSendInterface(stage, timestamp, iface,  host)
         }
         // Iterate over all generators
@@ -209,19 +224,9 @@ class Orchestrator() {
         }
     }
 
-    private fun processReports() {
-        for (node in nodeMap.nodes){
-            var current_stage = 0
-            for (stage in test.stages){
-                print(getReport(node.ip, current_stage))
-                current_stage++
-            }
-            print(getReport(node.ip, current_stage))
-        }
-    }
-
-    fun getReport(agentIP: String, stage: Int): String{
-        val host = "$agentIP:${this.agentPort}/reports/$stage"
+    // Gets a report from the remote
+    fun getReport(agentIP: String, stage: String): String{
+        val host = "http://$agentIP:${this.agentPort}/reports/$stage"
         val text = runBlocking {
             return@runBlocking client.request<String> {
                 url(host)
@@ -229,6 +234,16 @@ class Orchestrator() {
             }
         }
         return text
+    }
+
+    // Sends Instructions to a remote
+    private fun sendInstructions(instructions: String, client: HttpClient, host: String){
+        GlobalScope.launch (){
+            client.call(host) {
+                method = HttpMethod.Post
+                body = TextContent(instructions, contentType = ContentType.Application.Json)
+            }
+        }
     }
 }
 
