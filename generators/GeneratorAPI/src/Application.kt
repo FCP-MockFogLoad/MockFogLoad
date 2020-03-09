@@ -434,12 +434,13 @@ class ApplicationConfig {
     var s3: AmazonS3? = null
 
     /** The S3 bucket name. */
-    val bucketName: String
+    val bucketName: String = "fcp-ws19-generator-data-bucket"
 
     init {
-        bucketName = "fcp-ws19-generator-data-bucket"
-
-        // Uncomment to upload generator data
+        /**
+         * Uncomment to re-upload generator data (only works if it's available
+         * locally)
+         * */
         /*
         val config = ConfigurationProperties.fromResource("credentials")
         val awsCreds = BasicAWSCredentials(
@@ -542,6 +543,10 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
+        /**
+         * Uncomment to enable API (disabled by default because downloading data
+         * takes some time)
+         * */
         /*
         // Temperature generator
         val temperatureGenerator = TemperatureGenerator(appConfig,-1, appConfig.bucketName)

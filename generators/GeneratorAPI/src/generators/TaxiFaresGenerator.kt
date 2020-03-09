@@ -40,8 +40,8 @@ class TaxiFaresGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
         }
 
         private fun initializeTaxiFareData(bucketName: String) {
-            val resource =
-                loadResourceHTTP(bucketName, "taxiFares")
+            val resource = loadResourceHTTP(bucketName, "taxiFares")
+
             taxiFares = resource.split("\n").map { line -> try {
                 mapToTaxiFares(line)
             }
@@ -51,7 +51,7 @@ class TaxiFaresGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
         }
 
         private fun mapToTaxiFares(line: String): TaxiFares {
-            var result: List<String> = line.split(",").map { it.trim() }
+            val result: List<String> = line.split(",").map { it.trim() }
             return TaxiFares(
                 result.get(0).toLong(),
                 result.get(1).toLong(),

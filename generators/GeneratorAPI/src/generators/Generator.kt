@@ -8,17 +8,11 @@ import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.*
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createType
-
-
-data class GeneratorConfig(val type: String, val amount: Int) {
-
-}
 
 interface IGeneratorValue {
     /** The date and time of this datapoint. */

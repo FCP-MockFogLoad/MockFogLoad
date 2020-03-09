@@ -145,8 +145,6 @@ class HeartRateGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
             }
         }
 
-        println("starting activity $currentActivity for $activityDuration mins")
-
         val prevEnd = currentActivityEnd
         currentActivityEnd = currentActivityStart.plusMinutes(activityDuration.toLong())
         currentActivityStart = prevEnd
@@ -179,7 +177,7 @@ class HeartRateGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
             baseHeartRate.cholestoral,
             baseHeartRate.bloodSugar,
             baseHeartRate.electroCardiographic,
-            baseHeartRate.heartRate + randomFloat(-3.0f, 3.0f),
+            baseHeartRate.heartRate + randomFloat(-.5f, .5f),
             baseHeartRate.angina,
             baseHeartRate.oldPeak,
             currentActivityStart,

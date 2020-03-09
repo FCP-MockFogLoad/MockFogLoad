@@ -87,7 +87,7 @@ class TemperatureGenerator(app: ApplicationConfig, seed: Long, bucketName: Strin
 
             var n = 0
             for (dp in data.datapoints) {
-                // Ignore leap days.
+                // Ignore leap days to ensure equal length years.
                 if (dp.date.endsWith("0229")) {
                     continue
                 }
@@ -125,6 +125,7 @@ class TemperatureGenerator(app: ApplicationConfig, seed: Long, bucketName: Strin
         return Temperature(date, generateTemperature(date))
     }
 
+    @Suppress("unused")
     fun getTemperaturesForDay(date: LocalDateTime): List<Temperature> {
         return generateRandomValues(date, 24)
     }

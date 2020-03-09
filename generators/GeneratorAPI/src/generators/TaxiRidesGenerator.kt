@@ -59,7 +59,7 @@ class TaxiRidesGenerator(app: ApplicationConfig, seed: Long, bucketName: String)
         }
 
         private fun mapToTaxiRides(line: String): TaxiRides {
-            var result: List<String> = line.split(",").map { it.trim() }
+            val result: List<String> = line.split(",").map { it.trim() }
             return TaxiRides(
                 result.get(0).toLong(),
                 result.get(1),
