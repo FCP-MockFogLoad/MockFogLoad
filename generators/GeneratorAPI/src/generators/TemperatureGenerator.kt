@@ -1,9 +1,7 @@
-package com.fcp.temperature
+package com.fcp.generators
 
-import com.amazonaws.AmazonServiceException
 import com.amazonaws.services.s3.AmazonS3
-import com.fcp.generators.BaseGenerator
-import com.fcp.generators.Generator
+import com.fcp.ApplicationConfig
 import com.google.gson.GsonBuilder
 import java.time.LocalDateTime
 import java.util.*
@@ -11,19 +9,25 @@ import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.random.Random
 
+data class Temperature(override val date: LocalDateTime, override val value: Float) : IGeneratorValue {
+    override val unit: String
+        get() = "°C"
+}
+
 data class TemperatureDataPoint(val date: String, val temp: Float) {}
 data class TemperatureData(val mean: Float,
                            val datapoints: Array<TemperatureDataPoint>,
                            val region: String) {}
 
-class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperature>("Temperature") {
+class TemperatureGenerator(app: ApplicationConfig, seed: Long, bucketName: String): Generator<Temperature>("Temperature", app, seed) {
     var region: String
     val variation = 5f
     private var meanTemperatures: MutableList<Float>
 
     init {
         region = regions[Random.nextInt(0, regions.size)]
-        meanTemperatures = getMeanTemperatures(s3, bucketName, region)
+        meanTemperatures =
+            getMeanTemperatures(bucketName, region)
     }
 
     companion object {
@@ -37,11 +41,21 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
 
         val meanTemperatures = HashMap<String, MutableList<Float>>()
 
+        init {
+            registerGeneratorType(
+                "Temperature",
+                TemperatureGenerator::class
+            )
+        }
+
         @Suppress("unused")
-        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
+        fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
             for (region in regions) {
-                if (uploadResource(s3, bucketName, "temperature/$region.json",
-                              "temperature/$region")) {
+                if (uploadResource(
+                        s3, bucketName, "temperature/$region.json",
+                        "temperature/$region", force
+                    )
+                ) {
                     return true
                 }
             }
@@ -49,14 +63,17 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
             return false
         }
 
-        fun getMeanTemperatures(s3: AmazonS3, bucketName: String, region: String): MutableList<Float> {
+        fun getMeanTemperatures(bucketName: String, region: String): MutableList<Float> {
             var list = meanTemperatures[region]
             if (list != null) {
                 return list
             }
 
             val dataStr: String = try {
-                loadResource(s3, bucketName, "temperature/$region")
+                loadResourceHTTP(
+                    bucketName,
+                    "temperature/$region"
+                )
             } catch (e: Exception) {
                 println(e.message)
                 "{}"
@@ -70,7 +87,7 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
 
             var n = 0
             for (dp in data.datapoints) {
-                // Ignore leap days.
+                // Ignore leap days to ensure equal length years.
                 if (dp.date.endsWith("0229")) {
                     continue
                 }
@@ -108,6 +125,7 @@ class TemperatureGenerator(s3: AmazonS3, bucketName: String): Generator<Temperat
         return Temperature(date, generateTemperature(date))
     }
 
+    @Suppress("unused")
     fun getTemperaturesForDay(date: LocalDateTime): List<Temperature> {
         return generateRandomValues(date, 24)
     }
