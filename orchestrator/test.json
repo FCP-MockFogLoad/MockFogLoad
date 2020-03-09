@@ -1,0 +1,75 @@
+{
+    "testName": "HeartRate",
+    "stages": [
+        {
+            "id": 1,
+            "time": 10,
+            "node": [
+                {
+                    "id": "Node1",
+                    "generators": [
+                        {
+
+                            "id": "HR1",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "http://127.0.0.1:4567",
+                            "active": true
+                        },
+                        {
+
+                            "id": "HR2",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "http://127.0.0.1:4567",
+                            "active": true
+                        },
+                        {
+
+                            "id": "HR3",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "http://127.0.0.1:4567",
+                            "active": true
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "time": 5,
+            "node": [
+                {
+                    "id": "Node1",
+                    "generators": [
+                        {
+
+                            "id": "HR1",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "127.0.0.1:4567",
+                            "active": false
+                        },
+                        {
+
+                            "id": "HR2",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "127.0.0.1:4567",
+                            "active": false
+                        },
+                        {
+
+                            "id": "HR3",
+                            "kind": "HeartRate",
+                            "frequency": 100,
+                            "endpoint": "127.0.0.1:4567",
+                            "active": false
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
