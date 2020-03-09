@@ -508,6 +508,8 @@ fun uploadGeneratorData(s3Client: AmazonS3, bucketName: String, force: Boolean =
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+    var currentRegion = "Berlin"
+    print("Test")
     install(ContentNegotiation) {
         gson {
             setDateFormat(DateFormat.LONG)
