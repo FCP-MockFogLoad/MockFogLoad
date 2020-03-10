@@ -2,7 +2,7 @@ nodes:
   - id: application_layer2
     ip: 3.122.94.207
   - id: application_layer1_1
-    ip: 18.195.63.191
+    ip: localhost
   - id: generator2
     ip: 18.197.247.7
   - id: application_layer1_2

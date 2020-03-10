@@ -18,8 +18,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
 import java.io.File
+import java.lang.Exception
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.Timer
 import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
@@ -89,11 +92,8 @@ class Orchestrator() {
             totalTime += stage.time
             // Temporary output of current test stage
             Timer("Stages", false).schedule((startTime+totalTime-(System.currentTimeMillis() / 1000L))*1000) {
-                print("Running stage " + stage.id + "\n" + "Current time: " + (System.currentTimeMillis() / 1000L) + "\n")
-                for (remote in nodeMap.nodes){
-//                    val report = getReport(remote.ip, stage.id)
-//                    print(report)
-                }
+                print("Running stage " + stage.id + "\n" + "Current time: " + DateTimeFormatter.ISO_INSTANT.format(
+                    Instant.now()) + "\n")
             }
             // Iterate over all nodes in current stage
             for (node in stage.node){
@@ -111,22 +111,34 @@ class Orchestrator() {
 
     // Parses test yaml
     private fun parseTests(path: String): Test {
-        val parser = ObjectMapper(YAMLFactory())
-        parser.registerModule(KotlinModule())
-        // Read file from path
-        val yaml = Files.newBufferedReader(FileSystems.getDefault().getPath(path))
-        val objTest = parser.readValue(yaml, Test::class.java)
-        return(objTest)
+        try {
+            val parser = ObjectMapper(YAMLFactory())
+            parser.registerModule(KotlinModule())
+            // Read file from path
+            val yaml = Files.newBufferedReader(FileSystems.getDefault().getPath(path))
+            val objTest = parser.readValue(yaml, Test::class.java)
+            return(objTest)
+        } catch (e: Exception) {
+            println("Could not parse test file: $e")
+            exitProcess(0)
+        }
+
     }
 
     // Parses nodeMap yaml
     private fun parseNodes(path: String): NodeMap {
-        val parser = ObjectMapper(YAMLFactory())
-        parser.registerModule(KotlinModule())
-        // Read file from path
-        val yaml = Files.newBufferedReader(FileSystems.getDefault().getPath(path))
-        val objMap = parser.readValue(yaml, NodeMap::class.java)
-        return(objMap)
+        try {
+            val parser = ObjectMapper(YAMLFactory())
+            parser.registerModule(KotlinModule())
+            // Read file from path
+            val yaml = Files.newBufferedReader(FileSystems.getDefault().getPath(path))
+            val objMap = parser.readValue(yaml, NodeMap::class.java)
+            return(objMap)
+        } catch (e: Exception) {
+            println("Could not parse node mapping: $e")
+            exitProcess(0)
+        }
+
     }
     // Tries to find the IP for a given node ID in the NodeMap
     private fun getIPofNode(id: String?): String{
@@ -226,24 +238,35 @@ class Orchestrator() {
 
     // Gets a report from the remote
     fun getReport(agentIP: String, stage: String): String{
-        val host = "http://$agentIP:${this.agentPort}/reports/$stage"
-        val text = runBlocking {
-            return@runBlocking client.request<String> {
-                url(host)
-                method = HttpMethod.Get
+        try {
+            val host = "http://$agentIP:${this.agentPort}/reports/$stage"
+            val text = runBlocking {
+                return@runBlocking client.request<String> {
+                    url(host)
+                    method = HttpMethod.Get
+                }
             }
+            return text
+        } catch (e: Exception) {
+            println("Unable to get report with id $stage from agent $agentIP")
+            exitProcess(0)
         }
-        return text
     }
 
     // Sends Instructions to a remote
     private fun sendInstructions(instructions: String, client: HttpClient, host: String){
-        GlobalScope.launch (){
-            client.call(host) {
-                method = HttpMethod.Post
-                body = TextContent(instructions, contentType = ContentType.Application.Json)
+        try {
+            GlobalScope.launch (){
+                client.call(host) {
+                    method = HttpMethod.Post
+                    body = TextContent(instructions, contentType = ContentType.Application.Json)
+                }
             }
+        } catch (e: Exception) {
+            println("Unable to send instructions to remote $host.")
+            exitProcess(0)
         }
+
     }
 }
 

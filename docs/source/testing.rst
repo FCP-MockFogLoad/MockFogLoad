@@ -6,41 +6,34 @@ The testfiles have to be provided to the orchestrator in a JSON format.
 
 Example Test
 ------------
-The following JSON is an example test. It will turn off all interfaces on the node with id t2.micro_1 after 10 seconds. After another 10 seconds, all interfaces will be turned back on::
+The following YAML is an example test. It will set the bandwith on the interface docker0 on nodes with ids application_layer1_1 and generator1 to 1gbps. It will also spawn a heartrate generator on generator1 with the given configuration::
 
-    {
-        "testName": "AllDown",
-        "stages": [
-            {
-                "time": 10,
-                "node": [
-                    {
-                        "id": "t2.micro_1",
-                        "interface": [
-                            {
-                                "id": "all",
-                                "status": "down"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                "time": 10,
-                "node": [
-                    {
-                        "id": "t2.micro_1",
-                        "interface": [
-                            {
-                                "id": "all",
-                                "status": "up"
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
-    }
+    testName: HeartRate
+    stages:
+    - id: 1
+        time: 1
+        node:
+        - id: application_layer1_1
+            interfaces:
+            - id: docker0
+                bandwidth: 1gbps
+
+        - id: generator1
+            interfaces:
+            - id: docker0
+                bandwidth: 1gbps
+
+        - id: generator1
+            generators:
+            - id: HR1
+                kind: HeartRate
+                events_per_second: 30
+                endpoint: application_layer1_1
+                endpoint_port: 30444
+                active: true
+                format_string: '{"source":"peter","time":${timestamp},"value":${heartRate},"type":"heartRate"}'
+                protocol: HTTP
+                seed: 30
 
 Testing Parameters
 ------------------
@@ -54,18 +47,21 @@ The following parameters can be specified by applications for testing:
         * id: ID of the node, can be all to select all fog nodes.
         * interface: A list of interfaces.
             * id: ID of the interface, can be all to select all interfaces on a given node.
-            * status: Status of the interface, can be either on or off.
+            * active: Status of the interface, can be either true or false.
             * bandwidth: Maximum available throughput of the interface.
-            * buffer: Size of the queue buffer of the interface.
-            * routes: Set routes TBD/TODO
-        * cpu: Set maximum CPU clock speed.
-        * memory: Set maximum available memory.
-        * storage: Set storage size of the node.
+            * delay: Set a delay in ms
+            * loss: Set a percentage of how many packets get dropped
+        * app: A list of containers.
+            * id: Name of the container to be configured.
+            * cpu: Set CPU shares.
+            * memory: Set maximum available memory.
         * generators: A list of generators running on the node.
             * id: ID of the generator, can be all to select all generators running on a given node.
+            * kind: Set the type of generator. 
             * frequency: Set the frequency on how often the generator should send out data.
-            * granularity: Set how granular the generated data is.
             * active: Turn the generator off or on entirely.
-            * target: ID of a fog node to which the generator should send its data.
+            * endpoint: ID of a fog node to which the generator should send its data.
+            * endpoint_port: Port of the remote to which the generator will send its data.
             * seed: Restart the generator with a new specified seed.
-            * custom: TBD/TODO Custom generator parameters, provided in a (key,value) format.
+            * format_string: Set the format in which the generator will send data.
+            * protocol: Set the protocol with which the generator will send data. Options are HTTP, UDP and CoAP.
