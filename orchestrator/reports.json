@@ -1,0 +1,30 @@
+{
+    stage: 1, 
+    host: application_layer1_1,
+    "": {
+        "memory_limit": "256",
+        "cpu_shares": "1024",
+    }
+
+    "docker0": {
+        "bandwidth": "1gbps",
+        "latency": "0.0ms",
+        "packet_loss": "0",
+        "active" : "true",
+    }
+}
+{
+    stage: 2, 
+    host: application_layer1_1,
+    "": {
+        "memory_limit": "256",
+        "cpu_shares": "1024",
+    }
+
+    "docker0": {
+        "bandwidth": "1gbps",
+        "latency": "0.0ms",
+        "packet_loss": "0",
+        "active" : "true",
+    }
+}

@@ -1,0 +1,26 @@
+testName: HeartRate
+stages:
+  - id: 1
+    time: 5
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps
+
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps
+  - id: 2
+    time: 5
+    node:
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps
+
+      - id: application_layer1_1
+        interfaces:
+          - id: docker0
+            bandwidth: 1gbps

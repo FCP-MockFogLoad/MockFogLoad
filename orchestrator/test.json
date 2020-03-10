@@ -9,27 +9,41 @@
                     "id": "Node1",
                     "generators": [
                         {
-
                             "id": "HR1",
                             "kind": "HeartRate",
-                            "frequency": 100,
-                            "endpoint": "http://127.0.0.1:4567",
+                            "frequency": 30,
+                            "endpoint": "Node4",
                             "active": true
                         },
                         {
-
-                            "id": "HR2",
+                            "id": "H21",
                             "kind": "HeartRate",
-                            "frequency": 100,
-                            "endpoint": "http://127.0.0.1:4567",
+                            "frequency": 30,
+                            "endpoint": "Node",
                             "active": true
-                        },
+                        }
+                    ]
+                },
+                {
+                    "id": "Node2",
+                    "generators": [
                         {
-
-                            "id": "HR3",
+                            "id": "HR1",
                             "kind": "HeartRate",
-                            "frequency": 100,
-                            "endpoint": "http://127.0.0.1:4567",
+                            "frequency": 30,
+                            "endpoint": "Node4",
+                            "active": true
+                        }
+                    ]
+                },
+                {
+                    "id": "Node3",
+                    "generators": [
+                        {
+                            "id": "HR1",
+                            "kind": "HeartRate",
+                            "frequency": 30,
+                            "endpoint": "Node4",
                             "active": true
                         }
                     ]
@@ -38,33 +52,41 @@
         },
         {
             "id": 2,
-            "time": 5,
+            "time": 15,
             "node": [
                 {
                     "id": "Node1",
                     "generators": [
                         {
+                            "id": "HR1",
+                            "kind": "HeartRate",
+                            "frequency": 3000,
+                            "endpoint": "Node4",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "id": "Node2",
+                    "generators": [
+                        {
+                            "id": "HR1",
+                            "kind": "HeartRate",
+                            "frequency": 3000,
+                            "endpoint": "Node4",
+                            "active": false
+                        }
+                    ]
+                },
+                {
+                    "id": "Node3",
+                    "generators": [
+                        {
 
                             "id": "HR1",
                             "kind": "HeartRate",
-                            "frequency": 100,
-                            "endpoint": "127.0.0.1:4567",
-                            "active": false
-                        },
-                        {
-
-                            "id": "HR2",
-                            "kind": "HeartRate",
-                            "frequency": 100,
-                            "endpoint": "127.0.0.1:4567",
-                            "active": false
-                        },
-                        {
-
-                            "id": "HR3",
-                            "kind": "HeartRate",
-                            "frequency": 100,
-                            "endpoint": "127.0.0.1:4567",
+                            "frequency": 3000,
+                            "endpoint": "Node4",
                             "active": false
                         }
                     ]
