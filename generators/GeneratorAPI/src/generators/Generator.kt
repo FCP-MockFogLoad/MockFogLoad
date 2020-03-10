@@ -2,19 +2,27 @@ package com.fcp.generators
 
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.services.s3.AmazonS3
-import kotlinx.io.charsets.Charset
+import com.amazonaws.services.s3.model.CannedAccessControlList
+import com.fcp.ApplicationConfig
+import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
+import java.net.URL
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.math.abs
 import kotlin.random.Random
-
-data class GeneratorConfig(val type: String, val amount: Int) {
-
-}
+import kotlin.reflect.KClass
+import kotlin.reflect.full.createType
 
 interface IGeneratorValue {
     /** The date and time of this datapoint. */
     val date: LocalDateTime
+
+    /** The timestamp of this datapoint. */
+    val timestamp: Long
+        get() {
+            return System.currentTimeMillis()
+        }
 
     /** The unit of the generated values. */
     val unit: String
@@ -23,7 +31,10 @@ interface IGeneratorValue {
     val value: Float
 }
 
-abstract class BaseGenerator(val type: String)  {
+abstract class BaseGenerator(val type: String, val app: ApplicationConfig, seed: Long) {
+    /** A seeded random number generator. */
+    protected val random: Random = Random(seed)
+
     /** Return a random value of the generated type, mainly used for testing. */
     abstract fun generateValue(date: LocalDateTime): IGeneratorValue
 
@@ -44,6 +55,7 @@ abstract class BaseGenerator(val type: String)  {
 
             try {
                 s3.putObject(bucketName, key, resource)
+                s3.setObjectAcl(bucketName, key, CannedAccessControlList.PublicRead);
                 println("done!")
             } catch (e: AmazonServiceException) {
                 println(e.message)
@@ -65,10 +77,74 @@ abstract class BaseGenerator(val type: String)  {
 
             return sb.toString()
         }
+
+        fun loadResourceHTTP(bucketName: String, key: String): String {
+            var url = URL("https://$bucketName.s3.amazonaws.com/$key")
+            val inputStream = BufferedInputStream(url.openStream())
+            val out = ByteArrayOutputStream()
+            val buf = ByteArray(1024)
+            var n = 0
+
+            while (-1 != inputStream.read(buf).also { n = it }) {
+                out.write(buf, 0, n)
+            }
+
+            out.close()
+            inputStream.close()
+
+            return out.toString()
+        }
+
+        /** A dictionary of registered generator types, used for reflection. */
+        val registeredGenerators = HashMap<String, KClass<*>>()
+
+        /** Register a new generator type. */
+        fun registerGeneratorType(name: String, class_: KClass<*>) {
+            if (registeredGenerators.containsKey(name)) {
+                println("duplicate generator type '$name'")
+                return
+            }
+
+            println("registering generator type '$name'...")
+            registeredGenerators[name] = class_
+        }
+
+        /** Create a generator by name. */
+        fun spawnGenerator(name: String, app: ApplicationConfig, seed: Long, bucketName: String): BaseGenerator {
+            // Force class to load
+            Class.forName("com.fcp.generators.${name}Generator")
+
+            if (!registeredGenerators.containsKey(name)) {
+                throw Exception("unknown generator type '$name'")
+            }
+
+            val class_ = registeredGenerators[name]!!
+            val appConfigType = ApplicationConfig::class.createType()
+            val longType = Long::class.createType()
+            val stringType = String::class.createType()
+
+            for (ctor in class_.constructors) {
+                if (ctor.parameters.size != 3)
+                    continue
+
+                if (ctor.parameters[0].type != appConfigType)
+                    continue
+
+                if (ctor.parameters[1].type != longType)
+                    continue
+
+                if (ctor.parameters[2].type != stringType)
+                    continue
+
+                return ctor.call(app, seed, bucketName) as BaseGenerator
+            }
+
+            throw Exception("generator '$name' is missing constructor!")
+        }
     }
 }
 
-abstract class Generator<T: IGeneratorValue>(type: String): BaseGenerator(type) {
+abstract class Generator<T: IGeneratorValue>(type: String, app: ApplicationConfig, seed: Long): BaseGenerator(type, app, seed) {
     override fun generateValue(date: LocalDateTime): IGeneratorValue {
         return getRandomValue(date)
     }
@@ -83,6 +159,6 @@ abstract class Generator<T: IGeneratorValue>(type: String): BaseGenerator(type) 
 
     /** Helper function for generating floats within an interval. */
     protected fun randomFloat(from: Float, to: Float): Float {
-        return from + (abs(from - to) * Random.nextFloat());
+        return from + (abs(from - to) * random.nextFloat());
     }
 }
