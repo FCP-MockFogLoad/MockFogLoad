@@ -11,6 +11,7 @@ Welcome to MockFogLoad's documentation!
    :caption: Contents:
 
    testing
+   generators
 
 
 Indices and tables

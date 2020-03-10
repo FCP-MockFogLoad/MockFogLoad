@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'MockFogLoad'
+project = 'MFL'
 copyright = '2019, TUB'
 author = 'TUB'
 

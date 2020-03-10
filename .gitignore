@@ -5,3 +5,4 @@ docs/build
 .*.sw?
 *.so
 *.o
+*.swp
