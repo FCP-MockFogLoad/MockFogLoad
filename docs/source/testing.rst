@@ -70,10 +70,14 @@ The following parameters can be specified by applications for testing:
         * generators(optional): A list of generators running on the node.
             * id: ID of the generator, can be all to select all generators running on a given node.
             * kind(optional): Set the type of generator. 
-            * frequency(optional): Set the frequency on how often the generator should send out data.
+            * frequency(optional): Set the frequency of how often the generator should send out data (milliseconds between generated datapoints). Default: 100.
+            * events_per_second(optional): Alternative way of specifying the generator's frequency.
+            * granularity(optional): Set the amount of simulated time that passes between generated events (milliseconds). Default: 1000.
+            * seconds_between_datapoints(optional): Alternative way of specifying the generator's granularity.
+            * date(optional): The start date of the generated data. Default: Now.
             * active(optional): Turn the generator off or on entirely.
             * endpoint(optional): ID of a fog node to which the generator should send its data.
             * endpoint_port(optional): Port of the remote to which the generator will send its data.
             * seed(optional): Restart the generator with a new specified seed.
-            * format_string(optional): Set the format in which the generator will send data.
-            * protocol(optional): Set the protocol with which the generator will send data. Options are HTTP, UDP and CoAP.
+            * format_string(optional): Format in which the generator will send data.
+            * protocol(optional): Which transport protocol should be used for communication. Can be UDP, CoAP or HTTP. Default: HTTP.

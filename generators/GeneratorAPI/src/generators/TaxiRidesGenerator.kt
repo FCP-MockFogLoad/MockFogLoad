@@ -1,11 +1,9 @@
-package com.fcp.generators.taxi
+package com.fcp.generators
 
 import com.amazonaws.services.s3.AmazonS3
-import com.fcp.generators.Generator
-import com.fcp.generators.IGeneratorValue
-import java.io.File
+import com.fcp.ApplicationConfig
 import java.time.LocalDateTime
-import kotlin.collections.listOf
+import java.time.temporal.ChronoUnit
 
 data class TaxiRides(val rideId: Long,
                      val isStart : String,
@@ -27,28 +25,41 @@ data class TaxiRides(val rideId: Long,
         get() = startLongitude
 }
 
-class TaxiRidesGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiRides>("TaxiRides"){
+class TaxiRidesGenerator(app: ApplicationConfig, seed: Long, bucketName: String): Generator<TaxiRides>("TaxiRides", app, seed) {
 
     init {
         if (taxiRides == null) {
-            initializeTaxiRidesData(s3, bucketName)
+            initializeTaxiRidesData(bucketName)
         }
     }
 
     companion object {
         private var taxiRides: List<TaxiRides>? = null
 
-        private fun initializeTaxiRidesData(s3: AmazonS3, bucketName: String) {
-            val resource = loadResource(s3, bucketName, "taxiRides")
+        init {
+            registerGeneratorType(
+                "TaxiRides",
+                TaxiRidesGenerator::class
+            )
+        }
+
+        private fun initializeTaxiRidesData(bucketName: String) {
+            val resource =
+                loadResourceHTTP(bucketName, "taxiRides")
             taxiRides = resource.split("\n")
-                .map { line -> try { this.mapToTaxiRides(line) } catch(e: Exception) {
-                    TaxiRides(0, "", "", "",
+                .map { line -> try {
+                    mapToTaxiRides(line)
+                } catch(e: Exception) {
+                    TaxiRides(
+                        0, "", "", "",
                         0f, 0f, 0f, 0f,
-                        0, 0, 0, LocalDateTime.now()) } }.toList()
+                        0, 0, 0, LocalDateTime.now()
+                    )
+                } }.toList()
         }
 
         private fun mapToTaxiRides(line: String): TaxiRides {
-            var result: List<String> = line.split(",").map { it.trim() }
+            val result: List<String> = line.split(",").map { it.trim() }
             return TaxiRides(
                 result.get(0).toLong(),
                 result.get(1),
@@ -66,14 +77,17 @@ class TaxiRidesGenerator(s3: AmazonS3, bucketName: String): Generator<TaxiRides>
         }
 
         @Suppress("unused")
-        fun uploadResources(s3: AmazonS3, bucketName: String): Boolean {
-            return uploadResource(s3, bucketName,
-                "taxiData/nycTaxiRides_50M", "taxiRides")
+        fun uploadResources(s3: AmazonS3, bucketName: String, force: Boolean = false): Boolean {
+            return uploadResource(
+                s3, bucketName,
+                "taxiData/nycTaxiRides_50M", "taxiRides", force
+            )
         }
     }
 
     override fun getRandomValue(date: LocalDateTime): TaxiRides {
-        return taxiRides!!.random()
+        val passedMinutes = ChronoUnit.MINUTES.between(app.startDate, date)
+        return taxiRides!![(passedMinutes % taxiRides!!.size).toInt()]
     }
 
     override fun generateRandomValues(date: LocalDateTime, amount: Int): List<TaxiRides> {
