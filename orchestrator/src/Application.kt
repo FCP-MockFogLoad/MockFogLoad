@@ -58,7 +58,6 @@ fun Application.module(testing: Boolean = false) {
 
     var orchestrator = Orchestrator()
     orchestrator.start()
-    //orchestrator.getReport("null",3)
 }
 
 class Orchestrator() {
@@ -172,7 +171,7 @@ class Orchestrator() {
         sendInstructions(packedInstructions, this.client, "http://$host:${this.agentPort}/application")
         if (!reportRequests.contains(stage+host)) {
             reportRequests.add(stage+host)
-            Timer(stage+host, false).schedule(timestamp - System.currentTimeMillis() + 3000) {
+            Timer(stage+host, false).schedule(timestamp - System.currentTimeMillis() + 5000) {
                 var report = getReport(host, stage)
                 report = (report.substring(0,2) + "    stage: \"$stage\", \n    host: \"${getNodeFromIP(host)}\"," + report.substring(1,report.length))
                 reports.writeText(reports.readText()+","+report)
@@ -240,12 +239,14 @@ class Orchestrator() {
     fun getReport(agentIP: String, stage: String): String{
         try {
             val host = "http://$agentIP:${this.agentPort}/reports/$stage"
+            println(host)
             val text = runBlocking {
                 return@runBlocking client.request<String> {
                     url(host)
                     method = HttpMethod.Get
                 }
             }
+            println("Received report: $text")
             return text
         } catch (e: Exception) {
             println("Unable to get report with id $stage from agent $agentIP")
@@ -255,17 +256,19 @@ class Orchestrator() {
 
     // Sends Instructions to a remote
     private fun sendInstructions(instructions: String, client: HttpClient, host: String){
-        try {
+
             GlobalScope.launch (){
+            try {
+                println(instructions)
                 client.call(host) {
                     method = HttpMethod.Post
                     body = TextContent(instructions, contentType = ContentType.Application.Json)
                 }
+            } catch (e: Exception) {
+                    println("Unable to send instructions to remote $host.")
+                    exitProcess(0)
+                }
             }
-        } catch (e: Exception) {
-            println("Unable to send instructions to remote $host.")
-            exitProcess(0)
-        }
 
     }
 }
