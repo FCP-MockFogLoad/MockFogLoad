@@ -32,7 +32,7 @@ Below is a list of the available generator types as well as their configurable p
     * Options: None
 
 Implementing A New Generator
----------------
+----------------------------
 
 Implementing a new generator type involves a few simple changes to the kotlin project.
 
